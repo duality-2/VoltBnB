@@ -1,82 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/providers/auth_provider.dart';
+import '../../features/home/screens/home_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/signup_screen.dart';
-import '../../features/auth/screens/forgot_password_screen.dart';
-import '../../features/auth/screens/phone_otp_screen.dart';
-import '../../features/auth/screens/splash_screen.dart';
-import '../../features/charger/screens/home_screen.dart';
-import '../../features/charger/screens/add_charger_screen.dart';
-import '../../features/charger/screens/my_chargers_screen.dart';
-import '../../features/profile/screens/profile_screen.dart';
+import '../../features/auth/providers/auth_provider.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
+final routerProvider = Provider((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/login',
     redirect: (context, state) {
-      if (authState is AsyncLoading) return null;
-      
+      // Check if user is authenticated
       final isAuthenticated = authState.value != null;
-      final isSplash = state.matchedLocation == '/splash';
-      final isAuthRoute = state.matchedLocation == '/login' ||
-                          state.matchedLocation == '/signup' ||
-                          state.matchedLocation == '/forgot-password' ||
-                          state.matchedLocation == '/phone-otp';
 
-      if (isSplash) {
-        return isAuthenticated ? '/home' : '/login';
-      }
-
+      // If not authenticated, redirect to login (unless already on auth pages)
       if (!isAuthenticated) {
-        return isAuthRoute ? null : '/login';
+        if (state.matchedLocation == '/login' ||
+            state.matchedLocation == '/signup') {
+          return null; // Stay on current page
+        }
+        return '/login';
       }
 
-      if (isAuthenticated && isAuthRoute) {
-        return '/home';
+      // If authenticated but on login/signup, go to home
+      if (state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup') {
+        return '/';
       }
 
-      return null;
+      return null; // Allow navigation
     },
     routes: [
       GoRoute(
-        path: '/splash',
-        builder: (context, state) => const SplashScreen(),
+        path: '/',
+        name: 'home',
+        builder: (context, state) => const HomeScreen(),
       ),
       GoRoute(
         path: '/login',
+        name: 'login',
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupScreen(),
-      ),
-      GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
-      ),
-      GoRoute(
-        path: '/phone-otp',
-        builder: (context, state) => const PhoneOtpScreen(),
-      ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: '/add-charger',
-        builder: (context, state) => const AddChargerScreen(),
-      ),
-      GoRoute(
-        path: '/my-chargers',
-        builder: (context, state) => const MyChargersScreen(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
+        name: 'signup',
+        builder: (context, state) => const SignUpScreen(),
       ),
     ],
   );

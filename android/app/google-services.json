@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "734117694381",
+    "firebase_url": "https://voltbnb-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "voltbnb",
+    "storage_bucket": "voltbnb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:734117694381:android:5b3d401cc7feaf8f2f6f24",
+        "android_client_info": {
+          "package_name": "com.evshare.evshare"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "734117694381-r3e944ha874k3dqjgoj7jehvb2j3pthl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAf4ZKFYsxUDiUVvmU30BO_c3ybIBVbTtU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "734117694381-r3e944ha874k3dqjgoj7jehvb2j3pthl.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "734117694381-sf25c5cshbhtsj3gc2231j7cr410qlhi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.evshare.evshare"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

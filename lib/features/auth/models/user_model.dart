@@ -1,48 +1,78 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
-  final String uid;
-  final String name;
+  final String id;
   final String email;
-  final String? phone;
-  final String? photoUrl;
-  final String role; // 'host' | 'renter'
+  final String name;
+  final String? profileImageUrl;
+  final String? phoneNumber;
+  final String? address;
+  final String userType; // 'driver' or 'host'
   final DateTime createdAt;
-  final double walletBalance;
+  final DateTime? updatedAt;
 
   UserModel({
-    required this.uid,
-    required this.name,
+    required this.id,
     required this.email,
-    this.phone,
-    this.photoUrl,
-    required this.role,
+    required this.name,
+    this.profileImageUrl,
+    this.phoneNumber,
+    this.address,
+    required this.userType,
     required this.createdAt,
-    required this.walletBalance,
+    this.updatedAt,
   });
 
-  factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
+  factory UserModel.fromMap(Map<String, dynamic> map, String id) {
     return UserModel(
-      uid: documentId,
-      name: map['name'] ?? '',
+      id: id,
       email: map['email'] ?? '',
-      phone: map['phone'],
-      photoUrl: map['photoUrl'],
-      role: map['role'] ?? 'renter',
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      walletBalance: (map['walletBalance'] ?? 0.0).toDouble(),
+      name: map['name'] ?? '',
+      profileImageUrl: map['profileImageUrl'],
+      phoneNumber: map['phoneNumber'],
+      address: map['address'],
+      userType: map['userType'] ?? 'driver',
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
+          : null,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'name': name,
       'email': email,
-      'phone': phone,
-      'photoUrl': photoUrl,
-      'role': role,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'walletBalance': walletBalance,
+      'name': name,
+      'profileImageUrl': profileImageUrl,
+      'phoneNumber': phoneNumber,
+      'address': address,
+      'userType': userType,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
+  }
+
+  UserModel copyWith({
+    String? id,
+    String? email,
+    String? name,
+    String? profileImageUrl,
+    String? phoneNumber,
+    String? address,
+    String? userType,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      name: name ?? this.name,
+      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      address: address ?? this.address,
+      userType: userType ?? this.userType,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }
