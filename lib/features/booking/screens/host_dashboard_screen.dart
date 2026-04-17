@@ -23,6 +23,8 @@ class HostDashboardScreen extends ConsumerWidget {
       'startedAt': DateTime.now().toIso8601String(),
       'elapsedSeconds': 0,
       'kwhDelivered': 0.0,
+      'hostUid': booking.hostUid,
+      'renterUid': booking.renterUid,
       'status': 'active',
     });
 

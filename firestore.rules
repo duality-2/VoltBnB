@@ -1,31 +1,55 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow authenticated users to read and write to their own documents
+    // Users: owner-only profile access
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow anyone to read chargers
+    // Chargers: public read, owner-managed write via hostUid
     match /chargers/{chargerId} {
       allow read: if true;
-      allow write: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.hostUid == request.auth.uid;
+
+      allow update, delete: if request.auth != null
+        && resource.data.hostUid == request.auth.uid
+        && request.resource.data.hostUid == resource.data.hostUid;
     }
 
-    // Allow authenticated users to manage their own chargers
-    match /chargers/{chargerId} {
-      allow read, write: if request.auth.uid == resource.data.hostId;
-    }
-
-    // Allow bookings
+    // Bookings: renter creates, renter/host can read and update
     match /bookings/{bookingId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read: if request.auth != null
+        && (resource.data.renterUid == request.auth.uid
+          || resource.data.hostUid == request.auth.uid);
+
+      allow create: if request.auth != null
+        && request.resource.data.renterUid == request.auth.uid;
+
+      allow update: if request.auth != null
+        && (resource.data.renterUid == request.auth.uid
+          || resource.data.hostUid == request.auth.uid);
+
+      allow delete: if request.auth != null
+        && request.auth.uid == resource.data.renterUid
+        && resource.data.status == 'pending';
     }
 
-    // Test collection for health checks (temporary)
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Reviews: authenticated users can create their own review records
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.renterUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Notifications: owner-only reads
+    match /notifications/{userId}/items/{itemId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
     }
   }
 }
