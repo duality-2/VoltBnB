@@ -21,29 +21,14 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
   final _titleController = TextEditingController();
   final _addressController = TextEditingController();
   final _priceController = TextEditingController();
-
+  
   String _connectorType = 'Type 2';
   final List<String> _amenities = [];
   final List<File> _photos = [];
   bool _isLoading = false;
 
   final _availableAmenities = ['WiFi', 'Restroom', 'Cafe', 'Shopping'];
-  final _connectorTypes = [
-    'Type 1',
-    'Type 2',
-    'CCS1',
-    'CCS2',
-    'CHAdeMO',
-    'Tesla',
-  ];
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _addressController.dispose();
-    _priceController.dispose();
-    super.dispose();
-  }
+  final _connectorTypes = ['Type 1', 'Type 2', 'CCS1', 'CCS2', 'CHAdeMO', 'Tesla'];
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -57,7 +42,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
+    
     final user = ref.read(userProvider);
     if (user == null) return;
 
@@ -68,7 +53,8 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
 
       // Upload photos
       for (var photo in _photos) {
-        final refPath = 'chargers/$chargerId/${const Uuid().v4()}.jpg';
+        final fileName = '${const Uuid().v4()}.jpg';
+        final refPath = 'chargers/$chargerId/$fileName';
         final storageRef = FirebaseStorage.instance.ref().child(refPath);
         await storageRef.putFile(photo);
         final downloadUrl = await storageRef.getDownloadURL();
@@ -82,33 +68,29 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
 
       final charger = ChargerModel(
         id: chargerId,
-        hostId: user.uid,
-        name: _titleController.text.trim(),
+        hostUid: user.uid,
+        title: _titleController.text.trim(),
+        description: '', // Optional field
         address: _addressController.text.trim(),
-        latitude: lat,
-        longitude: lng,
-        pricePerHour: int.parse(_priceController.text.trim()),
-        chargerType: _connectorType,
+        lat: lat,
+        lng: lng,
+        pricePerHour: double.parse(_priceController.text.trim()),
+        connectorType: _connectorType,
         amenities: _amenities,
-        available: true,
-        imageUrl: photoUrls.isNotEmpty ? photoUrls.first : null,
+        isAvailable: true,
+        photos: photoUrls,
         rating: 0.0,
-        totalSlots: 1,
-        occupiedSlots: 0,
+        reviewCount: 0,
         createdAt: DateTime.now(),
       );
 
       await ref.read(chargerServiceProvider).createCharger(charger);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Charger added successfully!')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Charger added successfully!')));
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -141,20 +123,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                 controller: _priceController,
                 decoration: const InputDecoration(labelText: 'Price Per Hour'),
                 keyboardType: TextInputType.number,
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Required';
-                  }
-
-                  final price = double.tryParse(v.trim());
-                  if (price == null) {
-                    return 'Enter a valid number';
-                  }
-                  if (price <= 0) {
-                    return 'Price must be greater than 0';
-                  }
-                  return null;
-                },
+                validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
@@ -166,10 +135,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                 onChanged: (v) => setState(() => _connectorType = v!),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Amenities',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              const Text('Amenities', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               Wrap(
                 spacing: 8.0,
                 children: _availableAmenities.map((amenity) {
@@ -190,23 +156,13 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                 }).toList(),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Photos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              const Text('Photos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ..._photos.map(
-                    (file) => Image.file(
-                      file,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  ..._photos.map((file) => Image.file(file, width: 100, height: 100, fit: BoxFit.cover)),
                   GestureDetector(
                     onTap: _pickImages,
                     child: Container(
@@ -221,16 +177,10 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Add Charger'),
+                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                child: _isLoading 
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Add Charger'),
               ),
             ],
           ),

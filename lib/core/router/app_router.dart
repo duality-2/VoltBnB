@@ -31,9 +31,10 @@ final routerProvider = Provider((ref) {
       }
 
       // 2. Auth check with proper AsyncValue handling
-      final isAuthenticated = authState.whenData((user) => user != null).value ?? false;
-      
-      // Handle error state - go to error screen  
+      final isAuthenticated =
+          authState.whenData((user) => user != null).value ?? false;
+
+      // Handle error state - go to error screen
       if (authState.hasError && state.matchedLocation != '/error') {
         return '/error';
       }

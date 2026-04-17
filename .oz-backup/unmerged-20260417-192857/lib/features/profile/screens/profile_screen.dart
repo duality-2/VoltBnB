@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/services/user_service.dart';
 import '../../auth/models/user_model.dart';
-import '../../../core/providers/firebase_service_provider.dart';
+
+final userServiceProvider = Provider(
+  (ref) => UserService(FirebaseFirestore.instance),
+);
 
 final currentUserModelProvider = FutureProvider<UserModel?>((ref) async {
   final user = ref.watch(userProvider);
@@ -45,14 +50,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() => _isUploading = true);
     try {
       final file = File(pickedFile.path);
-      final refPath = 'users/${user.uid}/avatar.jpg';
+      final refPath = 'users/\${user.uid}/avatar.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(refPath);
 
       await storageRef.putFile(file);
       final downloadUrl = await storageRef.getDownloadURL();
 
       await ref.read(userServiceProvider).updateUser(user.uid, {
-        'profileImageUrl': downloadUrl,
+        'photoUrl': downloadUrl,
       });
       ref.invalidate(currentUserModelProvider);
     } catch (e) {

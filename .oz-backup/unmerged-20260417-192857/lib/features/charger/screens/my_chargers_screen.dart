@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/charger_provider.dart';
 
 class MyChargersScreen extends ConsumerWidget {
@@ -36,41 +35,20 @@ class MyChargersScreen extends ConsumerWidget {
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
-                  leading: charger.imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: charger.imageUrl!,
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            width: 50,
-                            height: 50,
-                            color: Colors.grey.shade200,
-                          ),
-                          errorWidget: (context, url, error) =>
-                              const Icon(Icons.broken_image, size: 50),
-                        )
+                  leading: charger.photos.isNotEmpty
+                      ? Image.network(charger.photos.first, width: 50, height: 50, fit: BoxFit.cover)
                       : const Icon(Icons.ev_station, size: 50),
-                  title: Text(charger.name),
-                  subtitle: Text(
-                    '\$ ${charger.pricePerHour} / hr\\n${charger.address}',
-                  ),
+                  title: Text(charger.title),
+                  subtitle: Text('\$ \${charger.pricePerHour.toStringAsFixed(2)} / hr\\n\${charger.address}'),
                   isThreeLine: true,
                   trailing: Switch(
-                    value: charger.available,
+                    value: charger.isAvailable,
                     onChanged: (value) async {
                       final messenger = ScaffoldMessenger.of(context);
                       try {
-                        await ref.read(chargerServiceProvider).updateCharger(
-                          charger.id,
-                          {'available': value},
-                        );
+                        await ref.read(chargerServiceProvider).updateCharger(charger.id, {'isAvailable': value});
                       } catch (e) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to update status'),
-                          ),
-                        );
+                        messenger.showSnackBar(const SnackBar(content: Text('Failed to update status')));
                       }
                     },
                     activeThumbColor: const Color(0xFF1DB954),

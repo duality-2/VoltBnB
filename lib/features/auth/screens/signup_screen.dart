@@ -3,12 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/auth_provider.dart';
+import '../providers/user_provider.dart';
 import '../models/user_model.dart';
-import '../../../core/providers/firebase_service_provider.dart';
-
-import '../services/auth_service.dart';
-
-import '../services/user_service.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -49,10 +45,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     try {
       final authService = ref.watch(authServiceProvider);
       final userService = ref.watch(userServiceProvider);
-      final auth = ref.read(firebaseAuthProvider);
-      
-      final firestore = ref.read(firebaseFirestoreProvider);
-      
 
       // Create auth user
       final userCredential = await authService.signUpWithEmail(
@@ -62,12 +54,11 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       // Create user profile in Firestore
       final userModel = UserModel(
-        uid: userCredential.user!.uid,
+        id: userCredential.user!.uid,
         email: _emailController.text.trim(),
         name: _nameController.text,
-        role: _userType == 'host' ? 'host' : 'renter',
+        userType: _userType,
         createdAt: DateTime.now(),
-        walletBalance: 0.0,
       );
 
       await userService.createUser(userModel);

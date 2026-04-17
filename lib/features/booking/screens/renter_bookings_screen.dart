@@ -148,7 +148,7 @@ class BookingCard extends ConsumerWidget {
             const SizedBox(height: 8),
             chargerAsync.when(
               data: (charger) => Text(
-                charger?.title ?? 'Unknown Charger',
+                charger?.name ?? 'Unknown Charger',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

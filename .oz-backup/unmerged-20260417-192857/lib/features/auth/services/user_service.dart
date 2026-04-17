@@ -25,54 +25,24 @@ class UserService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error fetching user: $e');
-      return null;
+      throw Exception('Failed to get user: $e');
     }
   }
 
   /// Update user data
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {
-    data['updatedAt'] = DateTime.now().toIso8601String();
-    await _firestore.collection('users').doc(userId).update(data);
-  }
-
-  /// Delete user
-  Future<void> deleteUser(String userId) async {
-    await _firestore.collection('users').doc(userId).delete();
-  }
-
-  /// Get all hosts (users with role = 'host')
-  Future<List<UserModel>> getHosts() async {
     try {
-      final snapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'host')
-          .get();
-      return snapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data(), doc.id))
-          .toList();
+      await _firestore.collection('users').doc(userId).update(data);
     } catch (e) {
-      debugPrint('Error fetching hosts: $e');
-      return [];
+      throw Exception('Failed to update user: $e');
     }
   }
 
-  /// Stream of user data for real-time updates
-  Stream<UserModel?> getUserStream(String userId) {
-    return _firestore.collection('users').doc(userId).snapshots().map((doc) {
-      if (doc.exists && doc.data() != null) {
-        return UserModel.fromMap(doc.data()!, doc.id);
-      }
-      return null;
-    });
-  }
-
-  /// Save FCM token to user document
+  /// Save FCM token for push notifications
   Future<void> saveFcmToken(String userId, String token) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'fcmToken': token,
-        'updatedAt': DateTime.now().toIso8601String(),
       });
     } catch (e) {
       debugPrint('Error saving FCM token: $e');

@@ -101,7 +101,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       _selectedTime!.hour,
       _selectedTime!.minute,
     );
-    final endTime = startTime.add(Duration(minutes: (_durationHours * 60).toInt()));
+    final endTime = startTime.add(
+      Duration(minutes: (_durationHours * 60).toInt()),
+    );
 
     if (startTime.isBefore(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,17 +113,25 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     }
 
     // OVERLAP VALIDATION
-    final existingBookings = ref.read(chargerBookingsProvider(widget.charger.id)).value;
+    final existingBookings = ref
+        .read(chargerBookingsProvider(widget.charger.id))
+        .value;
     if (existingBookings != null) {
       final hasOverlap = existingBookings.any((b) {
-        if (b.status == 'cancelled' || b.status == 'pending') return false; // Ignore cancelled/pending
+        if (b.status == 'cancelled' || b.status == 'pending') {
+          return false; // Ignore cancelled/pending
+        }
         // Overlap condition: Start1 < End2 AND End1 > Start2
         return startTime.isBefore(b.endTime) && endTime.isAfter(b.startTime);
       });
 
       if (hasOverlap) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Time slot overlaps with an existing booking. Please select another time.')),
+          const SnackBar(
+            content: Text(
+              'Time slot overlaps with an existing booking. Please select another time.',
+            ),
+          ),
         );
         return;
       }
@@ -134,7 +144,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       id: bookingId,
       renterUid: user.uid,
       chargerUid: widget.charger.id,
-      hostUid: widget.charger.hostUid,
+      hostUid: widget.charger.hostId,
       startTime: startTime,
       endTime: endTime,
       durationHours: _durationHours,
@@ -153,7 +163,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
       'amount': (totalAmount * 100).toInt(),
       'name': 'VoltBnB',
-      'description': '${widget.charger.title} - ${_durationHours}h',
+      'description': '${widget.charger.name} - ${_durationHours}h',
       'prefill': {'contact': '', 'email': user.email ?? ''},
       'notes': {'bookingId': bookingId},
     };
@@ -162,9 +172,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       _razorpay.open(options);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
     }
   }
 
@@ -176,32 +186,25 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     final bookingsAsync = ref.watch(chargerBookingsProvider(widget.charger.id));
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.charger.title)),
+      appBar: AppBar(title: Text(widget.charger.name)),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
               height: 250,
-              child: widget.charger.photos.isNotEmpty
-                  ? PageView.builder(
-                      itemCount: widget.charger.photos.length,
-                      itemBuilder: (context, index) {
-                        return CachedNetworkImage(
-                          imageUrl: widget.charger.photos[index],
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.broken_image),
-                          ),
-                        );
-                      },
+              child: widget.charger.imageUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: widget.charger.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image),
+                      ),
                     )
                   : Container(
                       color: Colors.grey.shade200,
@@ -218,7 +221,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.charger.title,
+                    widget.charger.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
