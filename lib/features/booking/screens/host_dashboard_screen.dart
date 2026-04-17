@@ -54,7 +54,16 @@ class HostDashboardScreen extends ConsumerWidget {
     final bookingsAsync = ref.watch(hostBookingsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Host Dashboard')),
+      appBar: AppBar(
+        title: const Text('Host Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => context.push('/host-notifications'),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: bookingsAsync.when(
         data: (bookings) {
           final now = DateTime.now();
