@@ -202,21 +202,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         alignment: Alignment.center,
         children: [
           Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF1E88E5).withValues(alpha: 0.18),
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E88E5).withValues(alpha: 0.35),
-                  blurRadius: 18,
-                  spreadRadius: 2,
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1E88E5).withValues(alpha: 0.18),
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1E88E5).withValues(alpha: 0.35),
+                      blurRadius: 18,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scaleXY(
+              )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .scaleXY(
                 begin: 0.92,
                 end: 1.08,
                 duration: 1.2.seconds,
