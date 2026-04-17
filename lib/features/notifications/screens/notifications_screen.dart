@@ -66,12 +66,33 @@ class NotificationsScreen extends ConsumerWidget {
                   ? (data['createdAt'] as Timestamp).toDate()
                   : DateTime.now();
               final read = data['read'] == true;
+              final type = (data['type'] ?? 'general').toString();
+
+              // Determine icon and theme color based on notification type
+              IconData iconData = Icons.notifications_active_rounded;
+              Color themeColor = const Color(0xFF3B82F6); // Default Blue
+
+              if (type == 'queue') {
+                iconData = Icons.group_add_rounded;
+                themeColor = const Color(0xFFF59E0B); // Orange
+              } else if (type == 'nudge' || type == 'idle_fee') {
+                iconData = Icons.warning_amber_rounded;
+                themeColor = const Color(0xFFEF4444); // Red
+              } else if (type == 'reroute') {
+                iconData = Icons.alt_route_rounded;
+                themeColor = const Color(0xFF8B5CF6); // Purple
+              }
+
+              // Fallback to standard outlined icon if read and general
+              if (read && type == 'general') {
+                iconData = Icons.notifications_none_rounded;
+              }
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Card(
                   elevation: 0,
-                  color: read ? Colors.white : const Color(0xFFEFF6FF), // Tinted blue for driver alerts
+                  color: read ? Colors.white : const Color(0xFFEFF6FF), // Tinted blue for unread
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
@@ -83,11 +104,11 @@ class NotificationsScreen extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: read ? const Color(0xFFF3F4F6) : const Color(0xFF3B82F6),
+                        color: read ? const Color(0xFFF3F4F6) : themeColor,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        read ? Icons.notifications_none_rounded : Icons.notifications_active_rounded,
+                        iconData,
                         color: read ? const Color(0xFF6B7280) : Colors.white,
                         size: 20,
                       ),
@@ -162,8 +183,8 @@ class NotificationsScreen extends ConsumerWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF3F4F6),
               shape: BoxShape.circle,
             ),
             child: const Icon(
