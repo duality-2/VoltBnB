@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -54,16 +54,7 @@ class HostDashboardScreen extends ConsumerWidget {
     final bookingsAsync = ref.watch(hostBookingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Host Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () => context.push('/host-notifications'),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Host Dashboard')),
       body: bookingsAsync.when(
         data: (bookings) {
           final now = DateTime.now();
@@ -74,8 +65,11 @@ class HostDashboardScreen extends ConsumerWidget {
           }).toList();
 
           final totalEarnings = bookings
-              .where((b) => b.status == 'confirmed' || b.status == 'completed' || b.status == 'active')
-              .fold(0.0, (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)));
+              .where((b) => b.status == 'confirmed' || b.status == 'completed')
+              .fold(
+                0.0,
+                (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)),
+              );
 
           // Prepare Chart Data
           final last7Days = List.generate(
@@ -91,7 +85,10 @@ class HostDashboardScreen extends ConsumerWidget {
                       b.startTime.month == day.month &&
                       b.startTime.day == day.day,
                 )
-                .fold(0.0, (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)));
+                .fold(
+                  0.0,
+                  (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)),
+                );
             return dayTotal;
           }).toList();
 
@@ -104,65 +101,46 @@ class HostDashboardScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             children: [
               Card(
-                color: const Color(0xFF111827),
+                color: const Color(0xFF1DB954),
                 child: Padding(
-                  padding: const EdgeInsets.all(28.0),
+                  padding: const EdgeInsets.all(24.0),
                   child: Column(
                     children: [
-                      Text(
-                        'AVAILABLE BALANCE',
-                        style: GoogleFonts.inter(
-                          color: Colors.white.withValues(alpha: 0.6), 
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.0,
-                        ),
+                      const Text(
+                        'Total Earnings',
+                        style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '₹${totalEarnings.toStringAsFixed(0)}',
-                        style: GoogleFonts.inter(
+                        '\$${totalEarnings.toStringAsFixed(2)}',
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -1,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Payout requested!')),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF22C55E),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Request Payout',
-                            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                          ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Payout logic
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Payout requested!')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF1DB954),
                         ),
+                        child: const Text('Request Payout'),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-               Text(
+              const Text(
                 "Earnings (Last 7 Days)",
-                style: GoogleFonts.inter(
-                  fontSize: 18, 
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF111827),
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -182,11 +160,7 @@ class HostDashboardScreen extends ConsumerWidget {
                               meta: meta,
                               child: Text(
                                 DateFormat('E').format(date),
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF6B7280),
-                                ),
+                                style: const TextStyle(fontSize: 10),
                               ),
                             );
                           },
@@ -210,9 +184,9 @@ class HostDashboardScreen extends ConsumerWidget {
                         barRods: [
                           BarChartRodData(
                             toY: e.value,
-                            color: const Color(0xFF22C55E),
-                            width: 14,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                            color: const Color(0xFF1DB954),
+                            width: 16,
+                            borderRadius: BorderRadius.circular(4),
                           ),
                         ],
                       );
@@ -221,13 +195,9 @@ class HostDashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
-               Text(
+              const Text(
                 "Today's Bookings",
-                style: GoogleFonts.inter(
-                  fontSize: 18, 
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF111827),
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               if (todayBookings.isEmpty)
@@ -237,27 +207,14 @@ class HostDashboardScreen extends ConsumerWidget {
                 ),
               ...todayBookings.map(
                 (b) => Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    child: ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0FDF4),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.bolt_rounded, color: Color(0xFF22C55E)),
-                      ),
-                      title: Text(
-                        'Renter: ${b.renterUid.substring(0, 8)}',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        '${DateFormat("hh:mm a").format(b.startTime)} - ${DateFormat("hh:mm a").format(b.endTime)}\n₹${b.totalAmount.toStringAsFixed(0)}',
-                        style: GoogleFonts.inter(color: const Color(0xFF6B7280), fontSize: 13),
-                      ),
-                      isThreeLine: true,
-                      trailing: b.status == 'awaiting_approval'
+                  child: ListTile(
+                    leading: const Icon(Icons.bolt, color: Color(0xFF1DB954)),
+                    title: Text('Renter: ${b.renterUid}'),
+                    subtitle: Text(
+                      '${DateFormat("hh:mm a").format(b.startTime)} - ${DateFormat("hh:mm a").format(b.endTime)}\n\$${b.totalAmount.toStringAsFixed(2)}',
+                    ),
+                    isThreeLine: true,
+                    trailing: b.status == 'pending'
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -266,18 +223,19 @@ class HostDashboardScreen extends ConsumerWidget {
                                   Icons.check_circle,
                                   color: Color(0xFF1DB954),
                                 ),
-                                onPressed: () => ref.read(bookingNotifierProvider.notifier).confirmBooking(b.id),
+                                onPressed: () => _updateBookingStatus(
+                                  ref,
+                                  b.id,
+                                  'confirmed',
+                                ),
                               ),
                               IconButton(
                                 icon: const Icon(
                                   Icons.cancel,
                                   color: Colors.red,
                                 ),
-                                onPressed: () => _updateBookingStatus(
-                                  ref,
-                                  b.id,
-                                  'rejected',
-                                ),
+                                onPressed: () =>
+                                    _updateBookingStatus(ref, b.id, 'rejected'),
                               ),
                             ],
                           )
@@ -291,38 +249,26 @@ class HostDashboardScreen extends ConsumerWidget {
                                   onPressed: () =>
                                       _startSession(context, ref, b),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF111827),
+                                    backgroundColor: const Color(0xFF1DB954),
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    minimumSize: const Size(0, 36),
                                   ),
-                                  child: Text(
-                                    'Start',
-                                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-                                  ),
+                                  child: const Text('Start Session'),
                                 )
-                              : Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: (b.status == 'confirmed' || b.status == 'completed') 
-                                        ? const Color(0xFFDCFCE7) 
-                                        : (b.status == 'active' ? const Color(0xFFDBEAFE) : const Color(0xFFF3F4F6)),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
+                              : Chip(
+                                  label: Text(
                                     b.status.toUpperCase(),
-                                    style: GoogleFonts.inter(
-                                      color: (b.status == 'confirmed' || b.status == 'completed') 
-                                          ? const Color(0xFF15803D) 
-                                          : (b.status == 'active' ? const Color(0xFF1E40AF) : const Color(0xFF6B7280)),
+                                    style: const TextStyle(
+                                      color: Colors.white,
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
                                     ),
                                   ),
+                                  backgroundColor:
+                                      b.status == 'confirmed' ||
+                                          b.status == 'completed'
+                                      ? const Color(0xFF1DB954)
+                                      : (b.status == 'active'
+                                            ? Colors.blue
+                                            : Colors.grey),
                                 )),
                   ),
                 ),

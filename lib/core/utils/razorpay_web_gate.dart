@@ -9,8 +9,8 @@ void openRazorpayWeb({
   try {
     js.context.callMethod('razorpayCheckout', [
       options,
-      js.allowInterop((paymentId) => onSuccess(paymentId.toString())),
-      js.allowInterop((error) => onFailure(error.toString())),
+      (paymentId) => onSuccess(paymentId.toString()),
+      (error) => onFailure(error.toString()),
     ]);
   } catch (e) {
     onFailure(e.toString());

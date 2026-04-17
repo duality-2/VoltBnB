@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/booking_provider.dart';
@@ -22,8 +23,14 @@ class RenterBookingsScreen extends ConsumerWidget {
         appBar: AppBar(
           title: const Text('My Bookings'),
           bottom: TabBar(
-            labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
-            unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
+            labelStyle: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            unselectedLabelStyle: GoogleFonts.inter(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
             indicatorColor: const Color(0xFF22C55E),
             labelColor: const Color(0xFF22C55E),
             unselectedLabelColor: const Color(0xFF6B7280),
@@ -40,19 +47,28 @@ class RenterBookingsScreen extends ConsumerWidget {
             final now = ref.watch(currentTimeProvider).value ?? DateTime.now();
             final upcoming = bookings
                 .where(
-                  (b) => b.startTime.isAfter(now) && b.status != 'cancelled' && b.status != 'completed',
+                  (b) =>
+                      b.startTime.isAfter(now) &&
+                      b.status != 'cancelled' &&
+                      b.status != 'completed',
                 )
                 .toList();
             final active = bookings
                 .where(
                   (b) =>
-                      (b.startTime.isBefore(now) && b.endTime.isAfter(now) && b.status != 'cancelled' && b.status != 'completed') ||
+                      (b.startTime.isBefore(now) &&
+                          b.endTime.isAfter(now) &&
+                          b.status != 'cancelled' &&
+                          b.status != 'completed') ||
                       b.status == 'active',
                 )
                 .toList();
             final past = bookings
                 .where(
-                  (b) => b.endTime.isBefore(now) || b.status == 'cancelled' || b.status == 'completed',
+                  (b) =>
+                      b.endTime.isBefore(now) ||
+                      b.status == 'cancelled' ||
+                      b.status == 'completed',
                 )
                 .toList();
 
@@ -125,7 +141,7 @@ class _BookingList extends StatelessWidget {
         }
 
         return BookingCard(
-          booking: booking, 
+          booking: booking,
           statusColor: textColor,
           statusBg: backgroundColor,
         );
@@ -169,7 +185,10 @@ class BookingCard extends ConsumerWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusBg,
                     borderRadius: BorderRadius.circular(6),
