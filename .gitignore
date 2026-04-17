@@ -55,7 +55,6 @@ app.*.map.json
 
 # Auto-generated plugin registrants (regenerated on every flutter run)
 android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
-android/local.properties
 ios/Runner/GeneratedPluginRegistrant.h
 ios/Runner/GeneratedPluginRegistrant.m
 linux/flutter/generated_plugin_registrant.cc
@@ -67,3 +66,4 @@ windows/flutter/generated_plugin_registrant.h
 windows/flutter/generated_plugins.cmake
 
 /.vscode
+/android/local.properties
