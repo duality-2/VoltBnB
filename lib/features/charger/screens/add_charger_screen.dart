@@ -10,6 +10,7 @@ import '../providers/charger_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/geocoding_service.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AddChargerScreen extends ConsumerStatefulWidget {
   const AddChargerScreen({super.key});
@@ -163,7 +164,24 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Charger')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          'Register Station',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF111827),
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -173,20 +191,30 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
+                style: GoogleFonts.inter(fontSize: 15),
+                decoration: const InputDecoration(
+                  labelText: 'Station Name',
+                  prefixIcon: Icon(Icons.bolt_rounded, size: 20),
+                ),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
+                style: GoogleFonts.inter(fontSize: 15),
+                decoration: const InputDecoration(
+                  labelText: 'Exact Address',
+                  prefixIcon: Icon(Icons.location_on_outlined, size: 20),
+                ),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descriptionController,
+                style: GoogleFonts.inter(fontSize: 15),
                 decoration: const InputDecoration(
                   labelText: 'Description',
+                  alignLabelWithHint: true,
                   hintText: 'Parking details, access instructions, etc.',
                 ),
                 maxLines: 3,
@@ -194,7 +222,14 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Price Per Hour'),
+                style: GoogleFonts.inter(fontSize: 15),
+                decoration: const InputDecoration(
+                  labelText: 'Price per Hour',
+                  prefixIcon: Padding(
+                    padding: EdgeInsets.all(14),
+                    child: Text('₹', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF22C55E))),
+                  ),
+                ),
                 keyboardType: TextInputType.number,
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
@@ -205,25 +240,33 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                   if (price == null) {
                     return 'Enter a valid number';
                   }
-                  if (price < 5 || price > 50) {
-                    return 'Price must be between ₹5 and ₹50';
+                  if (price < 5 || price > 500) {
+                    return 'Enter realistic price';
                   }
                   return null;
                 },
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                initialValue: _connectorType,
-                decoration: const InputDecoration(labelText: 'Connector Type'),
+                value: _connectorType,
+                style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF111827)),
+                decoration: const InputDecoration(
+                  labelText: 'Connector Type',
+                  prefixIcon: Icon(Icons.power_rounded, size: 20),
+                ),
                 items: _connectorTypes.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type));
                 }).toList(),
                 onChanged: (v) => setState(() => _connectorType = v!),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Amenities',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF111827),
+                ),
               ),
               Wrap(
                 spacing: 8.0,
@@ -231,6 +274,11 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                   final isSelected = _amenities.contains(amenity);
                   return FilterChip(
                     label: Text(amenity),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? const Color(0xFF166534) : const Color(0xFF374151),
+                    ),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
@@ -241,13 +289,21 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                         }
                       });
                     },
+                    backgroundColor: const Color(0xFFF3F4F6),
+                    selectedColor: const Color(0xFFDCFCE7),
+                    checkmarkColor: const Color(0xFF166534),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   );
                 }).toList(),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Available Slots',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF111827),
+                ),
               ),
               Wrap(
                 spacing: 8.0,
@@ -255,6 +311,11 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                   final isSelected = _availableSlots.contains(slot);
                   return FilterChip(
                     label: Text(slot),
+                    labelStyle: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? const Color(0xFF166534) : const Color(0xFF374151),
+                    ),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
@@ -265,13 +326,21 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                         }
                       });
                     },
+                    backgroundColor: const Color(0xFFF3F4F6),
+                    selectedColor: const Color(0xFFDCFCE7),
+                    checkmarkColor: const Color(0xFF166534),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   );
                 }).toList(),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Photos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: GoogleFonts.inter(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF111827),
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -311,18 +380,36 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF111827),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Register Station',
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Add Charger'),
               ),
             ],
           ),

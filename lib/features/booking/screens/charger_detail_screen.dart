@@ -32,8 +32,49 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
   Razorpay? _razorpay;
   String? _pendingBookingId;
 
-  // Fixed slot reservation fee
-  final double slotFee = 30.0;
+  // Base slot reservation fee
+  final double _baseSlotFee = 30.0;
+
+  double get _currentSlotFee {
+    if (_selectedSlot == null) return _baseSlotFee;
+
+    final timeParts = _selectedSlot!.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final hour = startTimeOfDay.hour;
+
+    for (var rule in widget.charger.pricingRules) {
+      if (rule.startHour <= hour && rule.endHour > hour) {
+        return (_baseSlotFee * rule.multiplier);
+      }
+      // Handle overnight ranges (e.g. 22:00 to 05:00)
+      if (rule.startHour > rule.endHour) {
+        if (hour >= rule.startHour || hour < rule.endHour) {
+          return (_baseSlotFee * rule.multiplier);
+        }
+      }
+    }
+    return _baseSlotFee;
+  }
+
+  String? get _activePriceLabel {
+    if (_selectedSlot == null) return null;
+
+    final timeParts = _selectedSlot!.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final hour = startTimeOfDay.hour;
+
+    for (var rule in widget.charger.pricingRules) {
+      if (rule.startHour <= hour && rule.endHour > hour) {
+        return rule.label.toUpperCase();
+      }
+      if (rule.startHour > rule.endHour) {
+        if (hour >= rule.startHour || hour < rule.endHour) {
+          return rule.label.toUpperCase();
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -57,7 +98,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     if (_pendingBookingId != null) {
       await ref
           .read(bookingNotifierProvider.notifier)
-          .confirmBooking(_pendingBookingId!, response.paymentId ?? '');
+          .requestApproval(_pendingBookingId!, response.paymentId ?? '');
       if (!mounted) return;
 
       final user = ref.read(userProvider);
@@ -81,10 +122,10 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         hostUid: widget.charger.hostId,
         slot: _selectedSlot!,
         date: _selectedDate!,
-        slotFee: slotFee,
+        slotFee: _currentSlotFee,
         energyFee: 0.0, 
-        totalAmount: slotFee, // Paid slot fee
-        status: 'confirmed',
+        totalAmount: _currentSlotFee, // Paid slot fee
+        status: 'awaiting_approval',
         paymentId: response.paymentId ?? '',
         createdAt: DateTime.now(),
         startTime: startTime,
@@ -182,9 +223,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       hostUid: widget.charger.hostId,
       slot: _selectedSlot!,
       date: _selectedDate!,
-      slotFee: slotFee,
+      slotFee: _currentSlotFee,
       energyFee: 0.0,
-      totalAmount: slotFee,
+      totalAmount: _currentSlotFee,
       status: 'pending',
       paymentId: '',
       createdAt: DateTime.now(),
@@ -200,7 +241,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     if (kIsWeb) {
       final webOptions = {
         'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
-        'amount': (slotFee * 100).round(), // Ensure integer
+        'amount': (_currentSlotFee * 100).round(), // Ensure integer
         'currency': 'INR', // Explicit currency for Web
         'name': 'VoltBnB',
         'description': 'Slot Fee: ${_selectedSlot}',
@@ -218,7 +259,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
             if (_pendingBookingId != null) {
               await ref
                   .read(bookingNotifierProvider.notifier)
-                  .confirmBooking(_pendingBookingId!, paymentId);
+                  .requestApproval(_pendingBookingId!, paymentId);
               if (!mounted) return;
               context.pushReplacement('/booking-success', extra: {
                 'booking': booking,
@@ -244,7 +285,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
 
     var options = {
       'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
-      'amount': (slotFee * 100).round(),
+      'amount': (_currentSlotFee * 100).round(),
       'currency': 'INR',
       'name': 'VoltBnB',
       'description': 'Slot Fee: ${_selectedSlot}',
@@ -275,7 +316,24 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         : ['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '01:00 PM - 02:00 PM'];
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.charger.name)),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          widget.charger.name,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF111827),
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -336,23 +394,31 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                       Expanded(
                         child: Text(
                           widget.charger.name,
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF111827),
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ),
-                      Chip(
-                        backgroundColor: widget.charger.healthStatus == 'Excellent' 
-                          ? Colors.green.shade100 
-                          : Colors.orange.shade100,
-                        label: Text(
-                          widget.charger.healthStatus,
-                          style: TextStyle(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: widget.charger.healthStatus == 'Excellent' 
+                            ? const Color(0xFFDCFCE7) 
+                            : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.charger.healthStatus.toUpperCase(),
+                          style: GoogleFonts.inter(
                             color: widget.charger.healthStatus == 'Excellent' 
-                              ? Colors.green.shade800 
-                              : Colors.orange.shade800,
-                            fontWeight: FontWeight.bold,
+                              ? const Color(0xFF166534) 
+                              : const Color(0xFF92400E),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -370,32 +436,70 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                       Expanded(
                         child: Text(
                           widget.charger.address,
-                          style: const TextStyle(color: Colors.grey),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF6B7280),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   if ((widget.charger.description ?? '').isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text(widget.charger.description!),
+                      Text(
+                        widget.charger.description!,
+                        style: GoogleFonts.inter(
+                          height: 1.5,
+                          color: const Color(0xFF374151),
+                          fontSize: 15,
+                        ),
+                      ),
                   ],
                   const SizedBox(height: 8),
-                  TextButton.icon(
                     onPressed: () =>
                         context.push('/charger/${widget.charger.id}/reviews'),
-                    icon: const Icon(Icons.rate_review_outlined),
-                    label: Text('See Reviews (${widget.charger.reviewCount})'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF22C55E),
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.star_outline, size: 18),
+                    label: Text(
+                      'See Reviews (${widget.charger.reviewCount})',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Amenities',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF111827),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     children: widget.charger.amenities
-                        .map((a) => Chip(label: Text(a)))
+                        .map((a) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Text(
+                            a,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF374151),
+                            ),
+                          ),
+                        ))
                         .toList(),
                   ),
                   const Divider(height: 32),
@@ -467,18 +571,34 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                           final isSelected = _selectedSlot == slotString;
 
                           return ChoiceChip(
-                            label: Text(slotString),
+                            label: Text(
+                              slotString,
+                              style: GoogleFonts.inter(
+                                color: isLockedOrBooked 
+                                  ? const Color(0xFF9CA3AF) 
+                                  : (isSelected ? Colors.white : const Color(0xFF374151)),
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
                             selected: isSelected,
                             onSelected: isLockedOrBooked ? null : (selected) {
                               setState(() {
                                 _selectedSlot = selected ? slotString : null;
                               });
                             },
-                            backgroundColor: isLockedOrBooked ? Colors.grey.shade300 : null,
-                            selectedColor: const Color(0xFF1DB954).withAlpha(80),
-                            labelStyle: TextStyle(
-                              color: isLockedOrBooked ? Colors.grey : (isSelected ? const Color(0xFF1DB954) : Colors.black),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            backgroundColor: isLockedOrBooked ? const Color(0xFFF3F4F6) : Colors.white,
+                            selectedColor: const Color(0xFF22C55E),
+                            showCheckmark: false,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: isSelected 
+                                  ? const Color(0xFF22C55E) 
+                                  : const Color(0xFFE5E7EB),
+                                width: 1.5,
+                              ),
                             ),
                           );
                         }).toList(),
@@ -496,38 +616,99 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade100),
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFBBF7D0), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF22C55E).withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Slot Reservation Fee (Pay Now)'),
-                              Text('₹${slotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Estimated Energy Cost (Pay Later)'),
-                              Text('~₹${widget.charger.pricePerHour.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                               Row(
+                                children: [
+                                  Text(
+                                    'Reservation Fee',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF166534),
+                                    ),
+                                  ),
+                                  if (_activePriceLabel != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _currentSlotFee > _baseSlotFee 
+                                          ? const Color(0xFFFECACA) 
+                                          : const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        _activePriceLabel!,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: _currentSlotFee > _baseSlotFee 
+                                            ? const Color(0xFF991B1B) 
+                                            : const Color(0xFF166534),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              Text(
+                                '₹${_currentSlotFee.toStringAsFixed(2)}', 
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700, 
+                                  fontSize: 18,
+                                  color: const Color(0xFF111827),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Row(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                              SizedBox(width: 8),
+                              Text(
+                                'Est. Energy Cost',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                '~₹${widget.charger.pricePerHour.toStringAsFixed(0)} /hr', 
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                           Row(
+                            children: [
+                              const Icon(Icons.security_rounded, size: 16, color: Color(0xFF059669)),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Your slot is secured for 5 minutes after booking initiation.',
-                                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                                  'Slot secured for 5 mins after starting.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12, 
+                                    color: const Color(0xFF059669),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
@@ -544,18 +725,19 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                     child: ElevatedButton(
                       onPressed: _selectedSlot != null ? _startBooking : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DB954),
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        backgroundColor: const Color(0xFF111827),
+                        disabledBackgroundColor: const Color(0xFFE5E7EB),
                         foregroundColor: Colors.white,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm & Pay Reservation Fee',
-                        style: TextStyle(
+                      child: Text(
+                        'Book & Pay ₹${_currentSlotFee.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),

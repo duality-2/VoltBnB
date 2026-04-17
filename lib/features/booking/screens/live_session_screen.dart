@@ -9,6 +9,7 @@ import '../models/booking_model.dart';
 import '../providers/booking_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../charger/providers/charger_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LiveSessionScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
@@ -150,19 +151,25 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0F172A), // Deep navy dark mode
       appBar: AppBar(
-        title: const Text('Live Charging Session'),
-        backgroundColor: Colors.black87,
+        title: Text(
+          'Live Charging',
+          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18),
+        ),
+        backgroundColor: const Color(0xFF0F172A),
         foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
       ),
-      backgroundColor: Colors.black87,
       body: Builder(
         builder: (context) {
           if (_sessionError != null) {
             return Center(
               child: Text(
+              child: Text(
                 'Error: $_sessionError',
-                style: const TextStyle(color: Colors.red),
+                style: GoogleFonts.inter(color: const Color(0xFFEF4444)),
               ),
             );
           }
@@ -170,8 +177,13 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
           if (_sessionData == null) {
             return const Center(
               child: Text(
+              child: Text(
                 'Connecting to Charger...',
-                style: TextStyle(color: Colors.white70),
+                style: GoogleFonts.inter(
+                  color: Colors.white60,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             );
           }
@@ -195,41 +207,76 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF1DB954), size: 80),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Session Completed',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E), size: 80),
                   ),
                   const SizedBox(height: 24),
-                  Card(
-                    color: Colors.white12,
-                    margin: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text('Energy Consumed: ${kwhDelivered.toStringAsFixed(2)} kWh', style: const TextStyle(color: Colors.white70, fontSize: 16)),
-                          const SizedBox(height: 8),
-                          Text('CO2 Saved: ${(kwhDelivered * 0.4).toStringAsFixed(2)} kg', style: const TextStyle(color: Colors.greenAccent, fontSize: 16)),
-                          const SizedBox(height: 16),
-                          const Text('Energy Fee billed to saved card', style: TextStyle(color: Colors.white54, fontSize: 12)),
-                        ],
-                      ),
+                  Text(
+                    'Charging Complete',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () => context.go('/'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 32),
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
-                    child: const Text('Back to Home'),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Energy Consumed', style: GoogleFonts.inter(color: Colors.white60)),
+                            Text('${kwhDelivered.toStringAsFixed(1)} kWh', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('CO2 Offset', style: GoogleFonts.inter(color: Colors.white60)),
+                            Text('${(kwhDelivered * 0.4).toStringAsFixed(2)} kg', style: GoogleFonts.inter(color: const Color(0xFF22C55E), fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                        const Divider(height: 32, color: Colors.white10),
+                        Text(
+                          'Payment processed automatically',
+                          style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: 200,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF0F172A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                      ),
+                      child: Text(
+                        'Back to Home',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                      ),
+                    ),
                   )
                 ],
               ),
@@ -243,33 +290,62 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    SizedBox(
-                      width: 250,
-                      height: 250,
+                    Container(
+                      width: 260,
+                      height: 260,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                            blurRadius: 40,
+                            spreadRadius: 5,
+                          )
+                        ],
+                      ),
                       child: CircularProgressIndicator(
                         value: progress,
-                        strokeWidth: 12,
-                        backgroundColor: Colors.white12,
-                        color: const Color(0xFF1DB954),
+                        strokeWidth: 14,
+                        backgroundColor: Colors.white.withValues(alpha: 0.05),
+                        color: const Color(0xFF22C55E),
+                        strokeCap: StrokeCap.round,
                       ),
                     ),
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${kwhDelivered.toStringAsFixed(2)} kWh',
-                          style: const TextStyle(
+                          '${kwhDelivered.toStringAsFixed(1)}',
+                          style: GoogleFonts.inter(
                             color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 56,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -2,
                           ),
                         ),
-                        const SizedBox(height: 8),
                         Text(
-                          '${(remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(remainingSeconds % 60).toString().padLeft(2, '0')} remaining',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 18,
+                          'kWh DELIVERED',
+                          style: GoogleFonts.inter(
+                            color: Colors.white54,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            '${(remainingSeconds ~/ 60)}m left',
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -277,39 +353,44 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
                   ],
                 ),
                 const SizedBox(height: 60),
-                const Text(
-                  'Charging in progress...',
-                  style: TextStyle(
-                    color: Color(0xFF1DB954),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
+                Text(
+                  'Powering your journey...',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF22C55E),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 40),
                 // Both Host and Driver can stop the session
-                ElevatedButton.icon(
-                  onPressed: _isEnding ? null : () => _endSession(data),
-                  icon: _isEnding
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.stop),
-                  label: const Text('Stop Session'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
+                SizedBox(
+                  width: 240,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _isEnding ? null : () => _endSession(data),
+                    icon: _isEnding
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.stop_rounded),
+                    label: Text(
+                      'End Session',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                      foregroundColor: const Color(0xFFEF4444),
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                        side: const BorderSide(color: Color(0xFFEF4444), width: 1.5),
+                      ),
                     ),
                   ),
                 ),

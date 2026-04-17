@@ -21,6 +21,7 @@ import '../../features/charger/screens/add_charger_screen.dart';
 import '../../features/charger/models/charger_model.dart';
 import '../../features/booking/models/booking_model.dart';
 import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/notifications/screens/host_notifications_screen.dart';
 import '../widgets/error_screen.dart';
 
 final routerProvider = Provider((ref) {
@@ -111,6 +112,10 @@ final routerProvider = Provider((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/host-notifications',
+        builder: (context, state) => const HostNotificationsScreen(),
       ),
       GoRoute(
         path: '/charger/:id',

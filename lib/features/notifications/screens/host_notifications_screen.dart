@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../auth/providers/auth_provider.dart';
 
-class NotificationsScreen extends ConsumerWidget {
-  const NotificationsScreen({super.key});
+class HostNotificationsScreen extends ConsumerWidget {
+  const HostNotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,7 +23,7 @@ class NotificationsScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
-          'Notifications',
+          'Host Notifications',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         backgroundColor: Colors.white,
@@ -60,7 +60,7 @@ class NotificationsScreen extends ConsumerWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data();
-              final title = (data['title'] ?? 'Update').toString();
+              final title = (data['title'] ?? 'Host Alert').toString();
               final body = (data['body'] ?? '').toString();
               final createdAt = data['createdAt'] is Timestamp
                   ? (data['createdAt'] as Timestamp).toDate()
@@ -71,11 +71,11 @@ class NotificationsScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Card(
                   elevation: 0,
-                  color: read ? Colors.white : const Color(0xFFEFF6FF), // Tinted blue for driver alerts
+                  color: read ? Colors.white : const Color(0xFFF0FDF4), // Tinted green for unread
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: read ? const Color(0xFFE5E7EB) : const Color(0xFFDBEAFE),
+                      color: read ? const Color(0xFFE5E7EB) : const Color(0xFFBBF7D0),
                     ),
                   ),
                   child: ListTile(
@@ -83,7 +83,7 @@ class NotificationsScreen extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: read ? const Color(0xFFF3F4F6) : const Color(0xFF3B82F6),
+                        color: read ? const Color(0xFFF3F4F6) : const Color(0xFF22C55E),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -183,7 +183,7 @@ class NotificationsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            "We'll notify you about your bookings here.",
+            "We'll notify you about your host activites here.",
             style: GoogleFonts.inter(
               color: const Color(0xFF6B7280),
               fontSize: 14,
