@@ -151,11 +151,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                       ),
                       Text(
-                        '\$${maxPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                        '₹${maxPrice.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w700,
                           fontSize: 18,
-                          color: Color(0xFF00E676),
+                          color: const Color(0xFF22C55E),
                         ),
                       ),
                     ],
@@ -165,7 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     max: 500,
                     divisions: 24,
                     value: maxPrice,
-                    activeColor: const Color(0xFF00E676),
+                    activeColor: const Color(0xFF22C55E),
                     onChanged: (value) => setModalState(() => maxPrice = value),
                   ),
                   const SizedBox(height: 8),
@@ -175,7 +175,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: SwitchListTile(
-                      activeThumbColor: const Color(0xFF00E676),
+                      activeThumbColor: const Color(0xFF22C55E),
                       value: availableOnly,
                       onChanged: (value) => setModalState(() => availableOnly = value),
                       title: const Text(
@@ -274,24 +274,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: charger.available
-                                ? const Color(0xFF00E676)
-                                : Colors.redAccent,
-                            border: Border.all(color: Colors.white, width: 3),
+                                ? const Color(0xFF22C55E)
+                                : const Color(0xFFEF4444),
+                            border: Border.all(color: Colors.white, width: 2.5),
                             boxShadow: [
                               BoxShadow(
                                 color: (charger.available
-                                        ? const Color(0xFF00E676)
-                                        : Colors.redAccent)
-                                    .withValues(alpha: 0.5),
-                                blurRadius: 12,
-                                spreadRadius: 2,
+                                        ? const Color(0xFF22C55E)
+                                        : const Color(0xFFEF4444))
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 10,
+                                spreadRadius: 0,
+                                offset: const Offset(0, 4),
                               )
                             ],
                           ),
                           child: const Icon(
                             Icons.bolt_rounded,
                             color: Colors.white,
-                            size: 24,
+                            size: 20,
                           ),
                         ),
                       ).animate().scale(
@@ -351,32 +352,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                    border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 16,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 4),
                       )
                     ],
                   ),
                   child: Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none_rounded),
-                        onPressed: () => context.push('/notifications'),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Icon(Icons.search_rounded, color: const Color(0xFF9CA3AF), size: 22),
                       ),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: TextField(
                           controller: _searchController,
                           onChanged: (_) => setState(() {}),
+                          style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400, color: const Color(0xFF111827)),
                           decoration: InputDecoration(
-                            hintText: 'Search areas or chargers...',
-                            hintStyle: TextStyle(color: Colors.grey.shade500),
+                            hintText: 'Search chargers...',
+                            hintStyle: GoogleFonts.inter(color: const Color(0xFF9CA3AF), fontSize: 15),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
@@ -387,23 +391,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                       if (_searchController.text.isNotEmpty)
                         IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF6B7280)),
                           onPressed: () {
                             _searchController.clear();
                             setState(() {});
                           },
                         ),
-                      Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => context.push('/notifications'),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: const Icon(Icons.notifications_none_rounded, size: 20, color: Color(0xFF374151)),
                         ),
-                        child: IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: Colors.white),
-                          onPressed: _openFilterSheet,
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _openFilterSheet,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF111827),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.tune_rounded, size: 20, color: Colors.white),
                         ),
-                      )
+                      ),
+                      const SizedBox(width: 4),
                     ],
                   ),
                 ),
@@ -468,12 +489,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(32),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 12),
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
                                 )
                               ],
                             ),
@@ -503,19 +525,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             charger.name,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
+                                            style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 17,
+                                              color: const Color(0xFF111827),
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 2),
                                           Text(
                                             charger.address,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontWeight: FontWeight.w500,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF6B7280),
+                                              fontWeight: FontWeight.w400,
+                                              fontSize: 13,
                                             ),
                                           ),
                                         ],
@@ -534,9 +558,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       ),
                                       decoration: BoxDecoration(
                                         color: charger.available
-                                            ? const Color(0xFFE8F5E9)
-                                            : Colors.red.shade50,
-                                        borderRadius: BorderRadius.circular(100),
+                                            ? const Color(0xFFF0FDF4)
+                                            : const Color(0xFFFEF2F2),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: charger.available
+                                              ? const Color(0xFFDCFCE7)
+                                              : const Color(0xFFFEE2E2),
+                                        ),
                                       ),
                                       child: Row(
                                         children: [
@@ -555,23 +584,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                            .scaleXY(end: charger.available ? 1.5 : 1, duration: 800.ms),
                                           const SizedBox(width: 6),
                                           Text(
-                                            charger.available ? 'Available' : 'Busy',
-                                            style: TextStyle(
+                                            charger.available ? 'AVAILABLE' : 'BUSY',
+                                            style: GoogleFonts.inter(
                                               color: charger.available
-                                                  ? Colors.green.shade800
-                                                  : Colors.red.shade800,
+                                                  ? const Color(0xFF15803D)
+                                                  : const Color(0xFFB91C1C),
                                               fontWeight: FontWeight.w700,
-                                              fontSize: 12,
+                                              fontSize: 11,
+                                              letterSpacing: 0.5,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     Text(
-                                      '\$${charger.pricePerHour}/hr',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
+                                      '₹${charger.pricePerHour}/hr',
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w700,
                                         fontSize: 20,
+                                        color: const Color(0xFF111827),
                                       ),
                                     ),
                                   ],

@@ -316,7 +316,24 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         : ['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '01:00 PM - 02:00 PM'];
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.charger.name)),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          widget.charger.name,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF111827),
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -377,23 +394,31 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                       Expanded(
                         child: Text(
                           widget.charger.name,
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF111827),
+                            letterSpacing: -0.5,
                           ),
                         ),
                       ),
-                      Chip(
-                        backgroundColor: widget.charger.healthStatus == 'Excellent' 
-                          ? Colors.green.shade100 
-                          : Colors.orange.shade100,
-                        label: Text(
-                          widget.charger.healthStatus,
-                          style: TextStyle(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: widget.charger.healthStatus == 'Excellent' 
+                            ? const Color(0xFFDCFCE7) 
+                            : const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          widget.charger.healthStatus.toUpperCase(),
+                          style: GoogleFonts.inter(
                             color: widget.charger.healthStatus == 'Excellent' 
-                              ? Colors.green.shade800 
-                              : Colors.orange.shade800,
-                            fontWeight: FontWeight.bold,
+                              ? const Color(0xFF166534) 
+                              : const Color(0xFF92400E),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -411,32 +436,70 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                       Expanded(
                         child: Text(
                           widget.charger.address,
-                          style: const TextStyle(color: Colors.grey),
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF6B7280),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   if ((widget.charger.description ?? '').isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Text(widget.charger.description!),
+                      Text(
+                        widget.charger.description!,
+                        style: GoogleFonts.inter(
+                          height: 1.5,
+                          color: const Color(0xFF374151),
+                          fontSize: 15,
+                        ),
+                      ),
                   ],
                   const SizedBox(height: 8),
-                  TextButton.icon(
                     onPressed: () =>
                         context.push('/charger/${widget.charger.id}/reviews'),
-                    icon: const Icon(Icons.rate_review_outlined),
-                    label: Text('See Reviews (${widget.charger.reviewCount})'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF22C55E),
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: const Icon(Icons.star_outline, size: 18),
+                    label: Text(
+                      'See Reviews (${widget.charger.reviewCount})',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Amenities',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF111827),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
                     children: widget.charger.amenities
-                        .map((a) => Chip(label: Text(a)))
+                        .map((a) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Text(
+                            a,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF374151),
+                            ),
+                          ),
+                        ))
                         .toList(),
                   ),
                   const Divider(height: 32),
@@ -508,18 +571,34 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                           final isSelected = _selectedSlot == slotString;
 
                           return ChoiceChip(
-                            label: Text(slotString),
+                            label: Text(
+                              slotString,
+                              style: GoogleFonts.inter(
+                                color: isLockedOrBooked 
+                                  ? const Color(0xFF9CA3AF) 
+                                  : (isSelected ? Colors.white : const Color(0xFF374151)),
+                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
                             selected: isSelected,
                             onSelected: isLockedOrBooked ? null : (selected) {
                               setState(() {
                                 _selectedSlot = selected ? slotString : null;
                               });
                             },
-                            backgroundColor: isLockedOrBooked ? Colors.grey.shade300 : null,
-                            selectedColor: const Color(0xFF1DB954).withAlpha(80),
-                            labelStyle: TextStyle(
-                              color: isLockedOrBooked ? Colors.grey : (isSelected ? const Color(0xFF1DB954) : Colors.black),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            backgroundColor: isLockedOrBooked ? const Color(0xFFF3F4F6) : Colors.white,
+                            selectedColor: const Color(0xFF22C55E),
+                            showCheckmark: false,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: isSelected 
+                                  ? const Color(0xFF22C55E) 
+                                  : const Color(0xFFE5E7EB),
+                                width: 1.5,
+                              ),
                             ),
                           );
                         }).toList(),
@@ -537,64 +616,99 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade100),
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFBBF7D0), width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF22C55E).withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
                       ),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
+                               Row(
                                 children: [
-                                  const Text('Slot Reservation Fee (Pay Now)'),
+                                  Text(
+                                    'Reservation Fee',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF166534),
+                                    ),
+                                  ),
                                   if (_activePriceLabel != null) ...[
                                     const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: _currentSlotFee > _baseSlotFee 
-                                          ? Colors.red.shade100 
-                                          : Colors.green.shade100,
+                                          ? const Color(0xFFFECACA) 
+                                          : const Color(0xFFDCFCE7),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         _activePriceLabel!,
-                                        style: TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w800,
                                           color: _currentSlotFee > _baseSlotFee 
-                                            ? Colors.red.shade900 
-                                            : Colors.green.shade900,
+                                            ? const Color(0xFF991B1B) 
+                                            : const Color(0xFF166534),
+                                          letterSpacing: 0.5,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ],
                               ),
-                              Text('₹${_currentSlotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Estimated Energy Cost (Pay Later)'),
-                              Text('~₹${widget.charger.pricePerHour.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                              Text(
+                                '₹${_currentSlotFee.toStringAsFixed(2)}', 
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700, 
+                                  fontSize: 18,
+                                  color: const Color(0xFF111827),
+                                ),
+                              ),
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Row(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                              SizedBox(width: 8),
+                              Text(
+                                'Est. Energy Cost',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                '~₹${widget.charger.pricePerHour.toStringAsFixed(0)} /hr', 
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6B7280),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                           Row(
+                            children: [
+                              const Icon(Icons.security_rounded, size: 16, color: Color(0xFF059669)),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Your slot is secured for 5 minutes after booking initiation.',
-                                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                                  'Slot secured for 5 mins after starting.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12, 
+                                    color: const Color(0xFF059669),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
@@ -611,18 +725,19 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                     child: ElevatedButton(
                       onPressed: _selectedSlot != null ? _startBooking : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DB954),
-                        disabledBackgroundColor: Colors.grey.shade300,
+                        backgroundColor: const Color(0xFF111827),
+                        disabledBackgroundColor: const Color(0xFFE5E7EB),
                         foregroundColor: Colors.white,
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm & Pay Reservation Fee',
-                        style: TextStyle(
+                      child: Text(
+                        'Book & Pay ₹${_currentSlotFee.toStringAsFixed(0)}',
+                        style: GoogleFonts.inter(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
