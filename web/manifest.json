@@ -1,6 +1,6 @@
 {
-    "name": "VoltBnB",
-    "short_name": "VoltBnB",
+    "name": "volt_bnb",
+    "short_name": "volt_bnb",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
