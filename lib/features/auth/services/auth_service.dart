@@ -25,7 +25,14 @@ class AuthService {
   }
 
   Future<UserCredential?> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    const String webClientId = '734117694381-r3e944ha874k3dqjgoj7jehvb2j3pthl.apps.googleusercontent.com';
+    const bool isWeb = bool.hasEnvironment('dart.library.js_util');
+    
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      serverClientId: isWeb ? null : webClientId,
+      clientId: isWeb ? webClientId : null,
+    );
+    final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
     if (googleUser == null) {
       return null; // User aborted
     }

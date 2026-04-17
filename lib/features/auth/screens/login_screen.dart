@@ -189,11 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: const Text('Forgot Password?'),
               ),
             ),
-            OutlinedButton.icon(
-              onPressed: _isLoading ? null : () => context.push('/phone-otp'),
-              icon: const Icon(Icons.phone),
-              label: const Text('Continue with Phone OTP'),
-            ),
+
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
