@@ -13,7 +13,7 @@ class BookingSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF22C55E), // Brand Green
+      backgroundColor: const Color(0xFFF59E0B), // Amber for Awaiting Approval
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -23,7 +23,7 @@ class BookingSuccessScreen extends StatelessWidget {
               const Icon(Icons.check_circle, size: 100, color: Colors.white),
               const SizedBox(height: 24),
               Text(
-                'Booking Confirmed!',
+                'Booking Requested!',
                 style: GoogleFonts.inter(
                   fontSize: 32,
                   fontWeight: FontWeight.w800,
@@ -34,7 +34,7 @@ class BookingSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Your time slot at ${charger.name} has been successfully reserved.',
+                'Your request for ${charger.name} has been sent. The host will review and approve it shortly.',
                 style: GoogleFonts.inter(
                   fontSize: 16, 
                   color: Colors.white.withValues(alpha: 0.9),
@@ -137,25 +137,26 @@ class BookingSuccessScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    context.push('/live-session', extra: booking);
-                  },
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
-                  label: Text('Check-in to Charger', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF111827),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(100),
+              if (booking.status == 'confirmed')
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      context.push('/live-session', extra: booking);
+                    },
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    label: Text('Check-in to Charger', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF111827),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
                     ),
                   ),
                 ),
-              ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => context.go('/'),

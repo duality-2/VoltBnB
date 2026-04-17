@@ -98,7 +98,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     if (_pendingBookingId != null) {
       await ref
           .read(bookingNotifierProvider.notifier)
-          .confirmBooking(_pendingBookingId!, response.paymentId ?? '');
+          .requestApproval(_pendingBookingId!, response.paymentId ?? '');
       if (!mounted) return;
 
       final user = ref.read(userProvider);
@@ -125,7 +125,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         slotFee: _currentSlotFee,
         energyFee: 0.0, 
         totalAmount: _currentSlotFee, // Paid slot fee
-        status: 'confirmed',
+        status: 'awaiting_approval',
         paymentId: response.paymentId ?? '',
         createdAt: DateTime.now(),
         startTime: startTime,
@@ -259,7 +259,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
             if (_pendingBookingId != null) {
               await ref
                   .read(bookingNotifierProvider.notifier)
-                  .confirmBooking(_pendingBookingId!, paymentId);
+                  .requestApproval(_pendingBookingId!, paymentId);
               if (!mounted) return;
               context.pushReplacement('/booking-success', extra: {
                 'booking': booking,

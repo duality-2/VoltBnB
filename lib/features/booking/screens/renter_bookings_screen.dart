@@ -111,6 +111,10 @@ class _BookingList extends StatelessWidget {
           backgroundColor = const Color(0xFFDCFCE7);
           textColor = const Color(0xFF15803D);
         }
+        if (booking.status == 'awaiting_approval') {
+          backgroundColor = const Color(0xFFFEF3C7);
+          textColor = const Color(0xFFB45309);
+        }
         if (booking.status == 'active') {
           backgroundColor = const Color(0xFFDBEAFE);
           textColor = const Color(0xFF1E40AF);

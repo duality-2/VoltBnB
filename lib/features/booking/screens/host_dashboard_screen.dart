@@ -65,7 +65,7 @@ class HostDashboardScreen extends ConsumerWidget {
           }).toList();
 
           final totalEarnings = bookings
-              .where((b) => b.status == 'confirmed' || b.status == 'completed')
+              .where((b) => b.status == 'confirmed' || b.status == 'completed' || b.status == 'active')
               .fold(0.0, (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)));
 
           // Prepare Chart Data
@@ -248,7 +248,7 @@ class HostDashboardScreen extends ConsumerWidget {
                         style: GoogleFonts.inter(color: const Color(0xFF6B7280), fontSize: 13),
                       ),
                       isThreeLine: true,
-                    trailing: b.status == 'pending'
+                      trailing: b.status == 'awaiting_approval'
                         ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -257,11 +257,7 @@ class HostDashboardScreen extends ConsumerWidget {
                                   Icons.check_circle,
                                   color: Color(0xFF1DB954),
                                 ),
-                                onPressed: () => _updateBookingStatus(
-                                  ref,
-                                  b.id,
-                                  'confirmed',
-                                ),
+                                onPressed: () => ref.read(bookingNotifierProvider.notifier).confirmBooking(b.id),
                               ),
                               IconButton(
                                 icon: const Icon(
