@@ -19,6 +19,13 @@ class BookingModel {
   final DateTime? sessionEndTime;
   final double kWhConsumed;
   final Timestamp? lockedUntil; 
+  // Anti-Frustration Features
+  final int? queuePosition;
+  final DateTime? estimatedSessionStart;
+  final double idleFee;
+  final bool isIdling;
+  final bool nudgeSent;
+  final String? reroutedFromId;
 
   BookingModel({
     required this.id,
@@ -39,6 +46,12 @@ class BookingModel {
     this.sessionEndTime,
     this.kWhConsumed = 0.0,
     this.lockedUntil,
+    this.queuePosition,
+    this.estimatedSessionStart,
+    this.idleFee = 0.0,
+    this.isIdling = false,
+    this.nudgeSent = false,
+    this.reroutedFromId,
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -61,6 +74,12 @@ class BookingModel {
       sessionEndTime: (map['sessionEndTime'] as Timestamp?)?.toDate(),
       kWhConsumed: (map['kWhConsumed'] ?? 0.0).toDouble(),
       lockedUntil: map['lockedUntil'] as Timestamp?,
+      queuePosition: map['queuePosition'] as int?,
+      estimatedSessionStart: (map['estimatedSessionStart'] as Timestamp?)?.toDate(),
+      idleFee: (map['idleFee'] ?? 0.0).toDouble(),
+      isIdling: map['isIdling'] ?? false,
+      nudgeSent: map['nudgeSent'] ?? false,
+      reroutedFromId: map['reroutedFromId'] as String?,
     );
   }
 
@@ -83,6 +102,12 @@ class BookingModel {
       'sessionEndTime': sessionEndTime != null ? Timestamp.fromDate(sessionEndTime!) : null,
       'kWhConsumed': kWhConsumed,
       'lockedUntil': lockedUntil,
+      'queuePosition': queuePosition,
+      'estimatedSessionStart': estimatedSessionStart != null ? Timestamp.fromDate(estimatedSessionStart!) : null,
+      'idleFee': idleFee,
+      'isIdling': isIdling,
+      'nudgeSent': nudgeSent,
+      'reroutedFromId': reroutedFromId,
       
       // Fallback keys for legacy
       'renterUid': renterUid,

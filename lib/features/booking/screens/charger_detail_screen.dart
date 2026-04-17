@@ -10,6 +10,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../charger/models/charger_model.dart';
+import '../../charger/providers/charger_provider.dart';
 import '../models/booking_model.dart';
 import '../providers/booking_provider.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -172,6 +173,21 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     // Temporary 5-min lock
     final lockedUntil = Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 5)));
 
+    final bookingsList = ref.read(chargerBookingsProvider(widget.charger.id)).value ?? [];
+    bool isSelectedOccupied = false;
+    int selectedQueueSize = 0;
+    
+    for (var b in bookingsList) {
+       if (b.date.year == _selectedDate!.year &&
+           b.date.month == _selectedDate!.month &&
+           b.date.day == _selectedDate!.day &&
+           b.slot == _selectedSlot) {
+           if (['confirmed', 'active', 'completed'].contains(b.status)) isSelectedOccupied = true;
+           if (b.status == 'pending' && b.lockedUntil != null && b.lockedUntil!.toDate().isAfter(DateTime.now())) isSelectedOccupied = true;
+           if (['queued', 'confirmed', 'active'].contains(b.status)) selectedQueueSize++;
+       }
+    }
+
     final bookingId = const Uuid().v4();
     _pendingBookingId = bookingId;
 
@@ -185,17 +201,30 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       slotFee: slotFee,
       energyFee: 0.0,
       totalAmount: slotFee,
-      status: 'pending',
+      status: isSelectedOccupied ? 'queued' : 'pending',
       paymentId: '',
       createdAt: DateTime.now(),
       startTime: startTime,
       endTime: endTime,
-      lockedUntil: lockedUntil,
+      lockedUntil: isSelectedOccupied ? null : lockedUntil,
+      queuePosition: isSelectedOccupied ? selectedQueueSize + 1 : null,
+      estimatedSessionStart: isSelectedOccupied ? DateTime.now().add(Duration(minutes: (selectedQueueSize + 1) * 30)) : null,
     );
 
     await ref
         .read(bookingNotifierProvider.notifier)
         .createPendingBooking(booking);
+
+    // If joining queue, no payment required right now
+    if (isSelectedOccupied) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Successfully joined the queue!')));
+       context.pushReplacement('/booking-success', extra: {
+         'booking': booking,
+         'charger': widget.charger,
+       });
+       return;
+    }
 
     if (kIsWeb) {
       final webOptions = {
@@ -263,6 +292,17 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Payment failed: $e')));
     }
+  }
+
+  void _rerouteToAlternative() async {
+     final allChargersAsync = await ref.read(availableChargersProvider.future);
+     final alternative = allChargersAsync.where((c) => c.id != widget.charger.id).firstOrNull; 
+     if (alternative != null && mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rerouting to ${alternative.name}...')));
+         context.pushReplacement('/charger/${alternative.id}');
+     } else {
+         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No alternatives found nearby.')));
+     }
   }
 
   @override
@@ -469,15 +509,15 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                           return ChoiceChip(
                             label: Text(slotString),
                             selected: isSelected,
-                            onSelected: isLockedOrBooked ? null : (selected) {
+                            onSelected: (selected) {
                               setState(() {
                                 _selectedSlot = selected ? slotString : null;
                               });
                             },
-                            backgroundColor: isLockedOrBooked ? Colors.grey.shade300 : null,
-                            selectedColor: const Color(0xFF1DB954).withAlpha(80),
+                            backgroundColor: isLockedOrBooked ? Colors.orange.shade100 : null,
+                            selectedColor: isLockedOrBooked ? Colors.orange.shade300 : const Color(0xFF1DB954).withAlpha(80),
                             labelStyle: TextStyle(
-                              color: isLockedOrBooked ? Colors.grey : (isSelected ? const Color(0xFF1DB954) : Colors.black),
+                              color: isLockedOrBooked ? Colors.deepOrange : (isSelected ? const Color(0xFF1DB954) : Colors.black),
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           );
@@ -495,71 +535,150 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade100),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Builder(
+                      builder: (context) {
+                        final bookingsList = bookingsAsync.value ?? [];
+                        bool isOccupied = false;
+                        int queueSize = 0;
+                        
+                        for (var b in bookingsList) {
+                           if (b.date.year == _selectedDate!.year &&
+                               b.date.month == _selectedDate!.month &&
+                               b.date.day == _selectedDate!.day &&
+                               b.slot == _selectedSlot) {
+                               if (['confirmed', 'active', 'completed'].contains(b.status)) isOccupied = true;
+                               if (b.status == 'pending' && b.lockedUntil != null && b.lockedUntil!.toDate().isAfter(DateTime.now())) isOccupied = true;
+                               if (['queued', 'confirmed', 'active'].contains(b.status)) queueSize++;
+                           }
+                        }
+
+                        if (isOccupied) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const Text('Slot Reservation Fee (Pay Now)'),
-                              Text('₹${slotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Estimated Energy Cost (Pay Later)'),
-                              Text('~₹${widget.charger.pricePerHour.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Row(
-                            children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.blue),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Your slot is secured for 5 minutes after booking initiation.',
-                                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.orange.shade200),
+                                ),
+                                child: Column(
+                                  children: [
+                                    const Row(
+                                      children: [
+                                        Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                                        SizedBox(width: 8),
+                                        Expanded(child: Text('Slot is Currently Occupied', style: TextStyle(fontWeight: FontWeight.bold))),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text('Wait time is approximately ${(queueSize)*30} mins. Join virtually to be notified when available!', style: TextStyle(color: Colors.orange.shade900)),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 50,
+                                child: ElevatedButton.icon(
+                                  onPressed: _startBooking,
+                                  icon: const Icon(Icons.group_add),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  label: Text('Join Virtual Queue (Pos: ${queueSize + 1})', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 50,
+                                child: OutlinedButton.icon(
+                                  onPressed: _rerouteToAlternative,
+                                  icon: const Icon(Icons.directions),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.deepPurple,
+                                    side: const BorderSide(color: Colors.deepPurple),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  label: const Text('Reroute to Nearby Alternate', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                                 ),
                               ),
                             ],
-                          ),
-                        ],
-                      ),
+                          );
+                        }
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.blue.shade100),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Slot Reservation Fee (Pay Now)'),
+                                      Text('₹${slotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Estimated Energy Cost (Pay Later)'),
+                                      Text('~₹${widget.charger.pricePerHour.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Row(
+                                    children: [
+                                      Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                                      SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Your slot is secured for 5 minutes after booking initiation.',
+                                          style: TextStyle(fontSize: 12, color: Colors.blue),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton(
+                                onPressed: _startBooking,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1DB954),
+                                  disabledBackgroundColor: Colors.grey.shade300,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Confirm & Pay Reservation Fee',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }
                     ),
                   ],
-                  
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _selectedSlot != null ? _startBooking : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1DB954),
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Confirm & Pay Reservation Fee',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 32),
                 ],
               ),

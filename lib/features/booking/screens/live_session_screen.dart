@@ -6,8 +6,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import '../models/booking_model.dart';
-import '../providers/booking_provider.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../charger/providers/charger_provider.dart';
 
 class LiveSessionScreen extends ConsumerStatefulWidget {
@@ -86,6 +84,36 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
             'elapsedSeconds': elapsed + 60,
             'kwhDelivered': kwh + 0.1,
           });
+       } else if (data != null && data['status'] == 'ended' && data['isIdling'] == true) {
+          int idleSecs = data['idleSeconds'] ?? 0;
+          double currentIdleFee = (data['idleFee'] ?? 0.0).toDouble();
+          
+          bool shouldNudge = idleSecs >= 300 && data['nudgeSent'] != true;
+          if (shouldNudge) {
+             // Mock sending a nudge (in a real app, this triggers a push notification)
+             await FirebaseFirestore.instance.collection('bookings').doc(widget.booking.id).update({
+                'nudgeSent': true,
+             });
+             await FirebaseFirestore.instance.collection('notifications').add({
+                'userUid': widget.booking.renterUid,
+                'title': 'Car Idling Warning!',
+                'body': 'Your session ended 5 minutes ago. Please move your car to avoid idle fees.',
+                'type': 'nudge',
+                'createdAt': FieldValue.serverTimestamp(),
+                'read': false,
+             });
+          }
+          
+          // Accrue fee after 5 mins of idling (e.g., Rs 5 per minute mock)
+          if (idleSecs >= 300) {
+            currentIdleFee += 5.0;
+          }
+
+          await _db.child('sessions/${widget.booking.id}').update({
+            'idleSeconds': idleSecs + 60,
+            'idleFee': currentIdleFee,
+            'nudgeSent': data['nudgeSent'] == true || shouldNudge,
+          });
        } else {
          timer.cancel();
        }
@@ -113,10 +141,13 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
       final energyFee = kwhDelivered * pricePerKwh;
       final totalAmount = widget.booking.slotFee + energyFee;
 
-      // 1. Update RTDB status
+      // 1. Update RTDB status to track idling
       await _db.child('sessions/${widget.booking.id}').update({
         'status': 'ended',
         'endedAt': DateTime.now().toIso8601String(),
+        'isIdling': true,
+        'idleSeconds': 0,
+        'idleFee': 0.0,
       });
 
       // 2. Update Firestore booking status
@@ -126,6 +157,7 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
         'totalAmount': totalAmount,
         'kWhConsumed': kwhDelivered,
         'sessionEndTime': FieldValue.serverTimestamp(),
+        'isIdling': true, 
       });
 
       if (mounted) {
@@ -144,6 +176,25 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
       if (mounted) {
         setState(() => _isEnding = false);
       }
+    }
+  }
+
+  Future<void> _leaveCharger(Map<dynamic, dynamic> sessionData) async {
+    try {
+      final idleFee = (sessionData['idleFee'] ?? 0.0).toDouble();
+      
+      await _db.child('sessions/${widget.booking.id}').update({
+         'isIdling': false,
+      });
+      await FirebaseFirestore.instance.collection('bookings').doc(widget.booking.id).update({
+         'isIdling': false,
+         'idleFee': idleFee,
+      });
+      if (mounted) {
+         context.go('/');
+      }
+    } catch (e) {
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -191,16 +242,23 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
           }
 
           if (status == 'ended') {
+            final isIdling = data['isIdling'] == true;
+            final idleSeconds = data['idleSeconds'] ?? 0;
+            final idleFee = (data['idleFee'] ?? 0.0).toDouble();
+            final nudgeSent = data['nudgeSent'] == true;
+
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.check_circle, color: Color(0xFF1DB954), size: 80),
+                  Icon(isIdling ? Icons.warning_amber_rounded : Icons.check_circle, 
+                       color: isIdling ? Colors.orange : const Color(0xFF1DB954), 
+                       size: 80),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Session Completed',
+                  Text(
+                    isIdling ? 'Action Required' : 'Session Completed',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: isIdling ? Colors.orange : Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -217,20 +275,41 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
                           const SizedBox(height: 8),
                           Text('CO2 Saved: ${(kwhDelivered * 0.4).toStringAsFixed(2)} kg', style: const TextStyle(color: Colors.greenAccent, fontSize: 16)),
                           const SizedBox(height: 16),
+                          if (isIdling) ...[
+                            const Divider(color: Colors.white24),
+                            const Text('Please unplug and move your car safely.', style: TextStyle(color: Colors.orangeAccent)),
+                            if (nudgeSent)
+                               const Text('Nudge Notification Sent!', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text('Idle Time: ${(idleSeconds ~/ 60)} min', style: const TextStyle(color: Colors.white70)),
+                            if (idleFee > 0)
+                               Text('Idle Fee Accrued: ₹${idleFee.toStringAsFixed(2)}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 16),
+                          ],
                           const Text('Energy Fee billed to saved card', style: TextStyle(color: Colors.white54, fontSize: 12)),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: () => context.go('/'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text('Back to Home'),
-                  )
+                  if (isIdling)
+                    ElevatedButton.icon(
+                      onPressed: () => _leaveCharger(data),
+                      icon: const Icon(Icons.directions_car),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                      label: const Text('I have moved my car'),
+                    )
+                  else
+                    ElevatedButton(
+                      onPressed: () => context.go('/'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text('Back to Home'),
+                    )
                 ],
               ),
             );

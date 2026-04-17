@@ -53,11 +53,28 @@ class NotificationsScreen extends ConsumerWidget {
                   : DateTime.now();
               final read = data['read'] == true;
 
+              final type = (data['type'] ?? 'general').toString();
+              
+              IconData iconData = read ? Icons.notifications_none : Icons.notifications_active;
+              Color iconColor = read ? Colors.grey : const Color(0xFF1DB954);
+
+              if (type == 'queue') {
+                iconData = Icons.group_add;
+                iconColor = Colors.orange;
+              } else if (type == 'nudge' || type == 'idle_fee') {
+                iconData = Icons.warning_amber_rounded;
+                iconColor = Colors.redAccent;
+              } else if (type == 'reroute') {
+                iconData = Icons.alt_route;
+                iconColor = Colors.deepPurple;
+              }
+
               return ListTile(
-                leading: Icon(
-                  read ? Icons.notifications_none : Icons.notifications_active,
+                leading: CircleAvatar(
+                  backgroundColor: iconColor.withAlpha(20),
+                  child: Icon(iconData, color: iconColor),
                 ),
-                title: Text(title),
+                title: Text(title, style: TextStyle(fontWeight: read ? FontWeight.normal : FontWeight.bold)),
                 subtitle: Text(
                   '${DateFormat('MMM d, h:mm a').format(createdAt)}\n$body',
                 ),
