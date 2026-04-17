@@ -21,11 +21,11 @@ final availableChargersProvider = StreamProvider<List<ChargerModel>>((ref) {
   return ref.watch(chargerServiceProvider).getAvailableChargers();
 });
 
-final chargerByIdProvider = FutureProvider.family<ChargerModel?, String>((
+final chargerByIdProvider = StreamProvider.family<ChargerModel?, String>((
   ref,
   id,
-) async {
-  return ref.watch(chargerServiceProvider).getCharger(id);
+) {
+  return ref.watch(chargerServiceProvider).getChargerStream(id);
 });
 
 final filteredChargersProvider = StreamProvider<List<ChargerModel>>((ref) {

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
+import '../models/user_model.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -57,9 +58,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go('/');
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _googleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final userService = ref.read(userServiceProvider);
+      final userCredential = await authService.signInWithGoogle();
+      
+      if (userCredential == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      if (userCredential.user != null) {
+        // Ensure user document exists in Firestore
+        final existingUser = await userService.getUser(userCredential.user!.uid);
+        if (existingUser == null) {
+          // Create new user defaulted to renter
+          final userModel = UserModel(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email ?? '',
+            name: userCredential.user!.displayName ?? 'Guest',
+            role: 'renter',
+            createdAt: DateTime.now(),
+          );
+          await userService.createUser(userModel);
+        }
+
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await userService.saveFcmToken(userCredential.user!.uid, fcmToken);
+        }
+      }
+
+      if (mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -127,6 +175,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Login'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _isLoading ? null : _googleLogin,
+              icon: const Icon(Icons.login),
+              label: const Text('Continue with Google'),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => context.push('/forgot-password'),
+                child: const Text('Forgot Password?'),
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _isLoading ? null : () => context.push('/phone-otp'),
+              icon: const Icon(Icons.phone),
+              label: const Text('Continue with Phone OTP'),
             ),
             const SizedBox(height: 16),
             Row(

@@ -44,11 +44,22 @@ class UserService {
   /// Get all hosts (users with role = 'host')
   Future<List<UserModel>> getHosts() async {
     try {
-      final snapshot = await _firestore
+      final roleSnapshot = await _firestore
           .collection('users')
           .where('role', isEqualTo: 'host')
           .get();
-      return snapshot.docs
+      if (roleSnapshot.docs.isNotEmpty) {
+        return roleSnapshot.docs
+            .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+            .toList();
+      }
+
+      final legacySnapshot = await _firestore
+          .collection('users')
+          .where('userType', isEqualTo: 'host')
+          .get();
+
+      return legacySnapshot.docs
           .map((doc) => UserModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {

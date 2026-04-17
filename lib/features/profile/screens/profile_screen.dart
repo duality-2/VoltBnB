@@ -1,17 +1,12 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/models/user_model.dart';
+import '../../auth/providers/user_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 
-final currentUserModelProvider = FutureProvider<UserModel?>((ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return null;
-  return ref.read(userServiceProvider).getUser(user.uid);
-});
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -44,15 +39,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _isUploading = true);
     try {
-      final file = File(pickedFile.path);
       final refPath = 'users/${user.uid}/avatar.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(refPath);
 
-      await storageRef.putFile(file);
+      if (kIsWeb) {
+        final bytes = await pickedFile.readAsBytes();
+        await storageRef.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+      } else {
+        final bytes = await pickedFile.readAsBytes();
+        await storageRef.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+      }
       final downloadUrl = await storageRef.getDownloadURL();
 
       await ref.read(userServiceProvider).updateUser(user.uid, {
         'profileImageUrl': downloadUrl,
+        'photoUrl': downloadUrl,
       });
       ref.invalidate(currentUserModelProvider);
     } catch (e) {
@@ -74,6 +81,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(userServiceProvider).updateUser(user.uid, {
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
       });
       ref.invalidate(currentUserModelProvider);
       if (!mounted) return;
@@ -95,10 +103,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final userAsync = ref.watch(currentUserModelProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            onPressed: () => ref.read(authServiceProvider).signOut(),
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: \$err')),
+        error: (err, stack) => Center(child: Text('Error: $err')),
         data: (userModel) {
           if (userModel == null) {
             return const Center(child: Text('User not found.'));
@@ -158,15 +174,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: userModel.userType == 'host'
+                    color: userModel.role == 'host'
                         ? Colors.blue.shade100
                         : Colors.green.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    userModel.userType.toUpperCase(),
+                    userModel.role.toUpperCase(),
                     style: TextStyle(
-                      color: userModel.userType == 'host'
+                      color: userModel.role == 'host'
                           ? Colors.blue.shade900
                           : Colors.green.shade900,
                       fontWeight: FontWeight.bold,

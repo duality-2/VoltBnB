@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import '../models/booking_model.dart';
 import '../providers/booking_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../charger/providers/charger_provider.dart';
 
 class LiveSessionScreen extends ConsumerStatefulWidget {
   final BookingModel booking;
@@ -27,6 +29,7 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
   @override
   void initState() {
     super.initState();
+    _startOrJoinSessionMock();
     _sessionSubscription = _db.child('sessions/${widget.booking.id}').onValue.listen(
       (event) {
         if (!mounted) return;
@@ -45,6 +48,50 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
     );
   }
 
+  Future<void> _startOrJoinSessionMock() async {
+    // If we're the driver and navigating here from QR Check-in Mock, we ensure the session is initialized in RTDB
+    final snapshot = await _db.child('sessions/${widget.booking.id}').get();
+    if (!snapshot.exists) {
+      await _db.child('sessions/${widget.booking.id}').set({
+        'startedAt': DateTime.now().toIso8601String(),
+        'elapsedSeconds': 0,
+        'kwhDelivered': 0.0,
+        'hostUid': widget.booking.hostUid,
+        'renterUid': widget.booking.renterUid,
+        'status': 'active',
+      });
+      // Start a mock incrementer just for the demo
+      _runMockDemoIncrement();
+    } else {
+      // If host started it, joining should also be okay
+      if (snapshot.child('status').value == 'active') {
+          _runMockDemoIncrement(); // just in case it's not running
+      }
+    }
+  }
+
+  void _runMockDemoIncrement() {
+    // Demo mode: Increment elapsedSeconds by 60 every 1 second, kwh by 0.5
+    Timer.periodic(const Duration(seconds: 1), (timer) async {
+       if (!mounted || _isEnding) {
+         timer.cancel();
+         return;
+       }
+       final refData = await _db.child('sessions/${widget.booking.id}').get();
+       final data = refData.value as Map<dynamic, dynamic>?;
+       if (data != null && data['status'] == 'active') {
+          int elapsed = data['elapsedSeconds'] ?? 0;
+          double kwh = (data['kwhDelivered'] ?? 0.0).toDouble();
+          await _db.child('sessions/${widget.booking.id}').update({
+            'elapsedSeconds': elapsed + 60,
+            'kwhDelivered': kwh + 0.1,
+          });
+       } else {
+         timer.cancel();
+       }
+    });
+  }
+
   @override
   void dispose() {
     _sessionSubscription?.cancel();
@@ -54,6 +101,18 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
   Future<void> _endSession(Map<dynamic, dynamic> sessionData) async {
     setState(() => _isEnding = true);
     try {
+      final kwhDelivered = (sessionData['kwhDelivered'] ?? 0.0).toDouble();
+      
+      double pricePerKwh = 10.0; // Default fallback
+      final chargerData = await ref.read(chargerByIdProvider(widget.booking.chargerUid).future);
+      if (chargerData != null) {
+        pricePerKwh = chargerData.pricePerHour.toDouble(); 
+        // Note: we use pricePerHour to roughly mean price per kwh for this demo flow.
+      }
+
+      final energyFee = kwhDelivered * pricePerKwh;
+      final totalAmount = widget.booking.slotFee + energyFee;
+
       // 1. Update RTDB status
       await _db.child('sessions/${widget.booking.id}').update({
         'status': 'ended',
@@ -61,15 +120,19 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
       });
 
       // 2. Update Firestore booking status
-      await ref
-          .read(bookingNotifierProvider.notifier)
-          .updateBookingStatus(widget.booking.id, 'completed');
+      await FirebaseFirestore.instance.collection('bookings').doc(widget.booking.id).update({
+        'status': 'completed',
+        'energyFee': energyFee,
+        'totalAmount': totalAmount,
+        'kWhConsumed': kwhDelivered,
+        'sessionEndTime': FieldValue.serverTimestamp(),
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Charging Session Ended')));
-        context.pop();
+        ).showSnackBar(const SnackBar(content: Text('Charging Session Completed & Billed!')));
+        // Let it naturally show the completed state instead of popping instantly.
       }
     } catch (e) {
       if (mounted) {
@@ -107,7 +170,7 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
           if (_sessionData == null) {
             return const Center(
               child: Text(
-                'Waiting for host to start session...',
+                'Connecting to Charger...',
                 style: TextStyle(color: Colors.white70),
               ),
             );
@@ -118,7 +181,7 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
           final elapsedSeconds = data['elapsedSeconds'] ?? 0;
           final kwhDelivered = (data['kwhDelivered'] ?? 0.0).toDouble();
 
-          final totalDurationSeconds = (widget.booking.durationHours * 3600).toInt();
+          final totalDurationSeconds = 3600; // 1 hr mock
           final remainingSeconds = totalDurationSeconds - elapsedSeconds;
           final progress = (elapsedSeconds / totalDurationSeconds).clamp(0.0, 1.0);
 
@@ -128,13 +191,13 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
           }
 
           if (status == 'ended') {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, color: Color(0xFF1DB954), size: 80),
-                  SizedBox(height: 16),
-                  Text(
+                  const Icon(Icons.check_circle, color: Color(0xFF1DB954), size: 80),
+                  const SizedBox(height: 16),
+                  const Text(
                     'Session Completed',
                     style: TextStyle(
                       color: Colors.white,
@@ -142,6 +205,32 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  Card(
+                    color: Colors.white12,
+                    margin: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text('Energy Consumed: ${kwhDelivered.toStringAsFixed(2)} kWh', style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          Text('CO2 Saved: ${(kwhDelivered * 0.4).toStringAsFixed(2)} kg', style: const TextStyle(color: Colors.greenAccent, fontSize: 16)),
+                          const SizedBox(height: 16),
+                          const Text('Energy Fee billed to saved card', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: () => context.go('/'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text('Back to Home'),
+                  )
                 ],
               ),
             );
@@ -197,33 +286,33 @@ class _LiveSessionScreenState extends ConsumerState<LiveSessionScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                if (widget.booking.hostUid == ref.read(userProvider)?.uid)
-                  ElevatedButton.icon(
-                    onPressed: _isEnding ? null : () => _endSession(data),
-                    icon: _isEnding
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.stop),
-                    label: const Text('Stop Session'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                // Both Host and Driver can stop the session
+                ElevatedButton.icon(
+                  onPressed: _isEnding ? null : () => _endSession(data),
+                  icon: _isEnding
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.stop),
+                  label: const Text('Stop Session'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
               ],
             ),
           );

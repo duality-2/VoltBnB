@@ -37,6 +37,10 @@ migrate_working_dir/
 # Local overrides / secrets
 pubspec_overrides.yaml
 .env
+.env*
+key.properties
+**/*.keystore
+**/*.jks
 
 # Symbolication related
 app.*.symbols

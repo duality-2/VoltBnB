@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/booking_provider.dart';
 import '../models/booking_model.dart';
 import '../../charger/providers/charger_provider.dart';
+import '../../../core/providers/timer_provider.dart';
+import 'review_dialog.dart';
 
 class RenterBookingsScreen extends ConsumerWidget {
   const RenterBookingsScreen({super.key});
@@ -28,32 +31,36 @@ class RenterBookingsScreen extends ConsumerWidget {
         ),
         body: bookingsAsync.when(
           data: (bookings) {
-            final now = DateTime.now();
+            final now = ref.watch(currentTimeProvider).value ?? DateTime.now();
             final upcoming = bookings
                 .where(
-                  (b) => b.startTime.isAfter(now) && b.status != 'cancelled',
+                  (b) => b.startTime.isAfter(now) && b.status != 'cancelled' && b.status != 'completed',
                 )
                 .toList();
             final active = bookings
                 .where(
                   (b) =>
-                      b.startTime.isBefore(now) &&
-                      b.endTime.isAfter(now) &&
-                      b.status != 'cancelled',
+                      (b.startTime.isBefore(now) && b.endTime.isAfter(now) && b.status != 'cancelled' && b.status != 'completed') ||
+                      b.status == 'active',
                 )
                 .toList();
             final past = bookings
                 .where(
-                  (b) => b.endTime.isBefore(now) || b.status == 'cancelled',
+                  (b) => b.endTime.isBefore(now) || b.status == 'cancelled' || b.status == 'completed',
                 )
                 .toList();
 
-            return TabBarView(
-              children: [
-                _BookingList(bookings: upcoming),
-                _BookingList(bookings: active),
-                _BookingList(bookings: past),
-              ],
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(renterBookingsProvider);
+              },
+              child: TabBarView(
+                children: [
+                  _BookingList(bookings: upcoming),
+                  _BookingList(bookings: active),
+                  _BookingList(bookings: past),
+                ],
+              ),
             );
           },
           loading: () => Skeletonizer(
@@ -81,8 +88,9 @@ class _BookingList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (bookings.isEmpty)
+    if (bookings.isEmpty) {
       return const Center(child: Text('No bookings found.'));
+    }
 
     return ListView.builder(
       itemCount: bookings.length,
@@ -175,6 +183,36 @@ class BookingCard extends ConsumerWidget {
               'Total: \$${booking.totalAmount.toStringAsFixed(2)}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            if (booking.status == 'active') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () =>
+                      context.push('/live-session', extra: booking),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('View Live Session'),
+                ),
+              ),
+            ],
+            if (booking.status == 'completed') ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => ReviewDialog(booking: booking),
+                    );
+                  },
+                  child: const Text('Leave a Review'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

@@ -23,7 +23,7 @@ class MyChargersScreen extends ConsumerWidget {
       ),
       body: chargersAsyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: \$err')),
+        error: (err, stack) => Center(child: Text('Error: $err')),
         data: (chargers) {
           if (chargers.isEmpty) {
             return const Center(child: Text('No chargers added yet.'));
@@ -53,7 +53,7 @@ class MyChargersScreen extends ConsumerWidget {
                       : const Icon(Icons.ev_station, size: 50),
                   title: Text(charger.name),
                   subtitle: Text(
-                    '\$ ${charger.pricePerHour} / hr\\n${charger.address}',
+                    '\$${charger.pricePerHour} / hr\n${charger.address}',
                   ),
                   isThreeLine: true,
                   trailing: Switch(
@@ -63,7 +63,7 @@ class MyChargersScreen extends ConsumerWidget {
                       try {
                         await ref.read(chargerServiceProvider).updateCharger(
                           charger.id,
-                          {'available': value},
+                          {'isAvailable': value},
                         );
                       } catch (e) {
                         messenger.showSnackBar(

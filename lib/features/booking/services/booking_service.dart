@@ -23,7 +23,7 @@ class BookingService {
   Stream<List<BookingModel>> getRenterBookings(String renterUid) {
     return _firestore
         .collection('bookings')
-        .where('renterUid', isEqualTo: renterUid)
+        .where('driverId', isEqualTo: renterUid)
         .orderBy('startTime', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -34,7 +34,7 @@ class BookingService {
   Stream<List<BookingModel>> getHostBookings(String hostUid) {
     return _firestore
         .collection('bookings')
-        .where('hostUid', isEqualTo: hostUid)
+        .where('hostId', isEqualTo: hostUid)
         .orderBy('startTime', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -45,7 +45,7 @@ class BookingService {
   Stream<List<BookingModel>> getChargerBookings(String chargerId) {
     return _firestore
         .collection('bookings')
-        .where('chargerUid', isEqualTo: chargerId)
+        .where('chargerId', isEqualTo: chargerId)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) => BookingModel.fromMap(doc.data(), doc.id)).toList();

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/auth_provider.dart';
-import '../providers/user_provider.dart';
 import '../models/user_model.dart';
+import '../../../core/providers/firebase_service_provider.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -17,7 +17,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  String _userType = 'driver'; // 'driver' or 'host'
+  String _userType = 'renter';
   bool _isLoading = false;
   String _error = '';
 
@@ -54,10 +54,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       // Create user profile in Firestore
       final userModel = UserModel(
-        id: userCredential.user!.uid,
+        uid: userCredential.user!.uid,
         email: _emailController.text.trim(),
-        name: _nameController.text,
-        userType: _userType,
+        name: _nameController.text.trim(),
+        role: _userType,
         createdAt: DateTime.now(),
       );
 
@@ -73,9 +73,54 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         context.go('/');
       }
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _googleSignUp() async {
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final userService = ref.read(userServiceProvider);
+      final userCredential = await authService.signInWithGoogle();
+
+      if (userCredential == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      if (userCredential.user != null) {
+        final existingUser = await userService.getUser(userCredential.user!.uid);
+        if (existingUser == null) {
+          final userModel = UserModel(
+            uid: userCredential.user!.uid,
+            email: userCredential.user!.email ?? '',
+            name: userCredential.user!.displayName ?? 'New User',
+            role: _userType,
+            createdAt: DateTime.now(),
+          );
+          await userService.createUser(userModel);
+        }
+
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await userService.saveFcmToken(userCredential.user!.uid, fcmToken);
+        }
+      }
+
+      if (mounted) {
+        context.go('/');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -141,13 +186,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 value: _userType,
                 isExpanded: true,
                 underline: const SizedBox(),
-                items: ['driver', 'host']
+                items: ['renter', 'host']
                     .map(
                       (type) => DropdownMenuItem(
                         value: type,
                         child: Text(
-                          type == 'driver'
-                              ? 'I am a Driver (looking for chargers)'
+                          type == 'renter'
+                              ? 'I am a Renter (looking for chargers)'
                               : 'I am a Host (renting chargers)',
                         ),
                       ),
@@ -184,6 +229,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Text('Create Account'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _isLoading ? null : _googleSignUp,
+              icon: const Icon(Icons.login),
+              label: const Text('Sign up with Google'),
             ),
             const SizedBox(height: 16),
             Row(

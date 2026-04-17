@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
@@ -6,10 +8,14 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../charger/models/charger_model.dart';
 import '../models/booking_model.dart';
 import '../providers/booking_provider.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/utils/razorpay_web_stub.dart'
+    if (dart.library.js_util) '../../../core/utils/razorpay_web_gate.dart'
+    as web_payment;
 
 class ChargerDetailScreen extends ConsumerStatefulWidget {
   final ChargerModel charger;
@@ -22,23 +28,28 @@ class ChargerDetailScreen extends ConsumerStatefulWidget {
 
 class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
-  double _durationHours = 1.0;
-  late Razorpay _razorpay;
+  String? _selectedSlot;
+  Razorpay? _razorpay;
   String? _pendingBookingId;
+
+  // Fixed slot reservation fee
+  final double slotFee = 30.0;
 
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _selectedDate = DateTime.now();
+    if (!kIsWeb) {
+      _razorpay = Razorpay();
+      _razorpay?.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+      _razorpay?.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+      _razorpay?.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    }
   }
 
   @override
   void dispose() {
-    _razorpay.clear();
+    _razorpay?.clear();
     super.dispose();
   }
 
@@ -48,10 +59,42 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
           .read(bookingNotifierProvider.notifier)
           .confirmBooking(_pendingBookingId!, response.paymentId ?? '');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment Successful! Booking Confirmed.')),
+
+      final user = ref.read(userProvider);
+      final timeParts = _selectedSlot!.split(' - ');
+      final startTimeOfDay = _parseTime(timeParts[0]);
+      final endTimeOfDay = _parseTime(timeParts[1]);
+
+      final startTime = DateTime(
+        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+        startTimeOfDay.hour, startTimeOfDay.minute,
       );
-      context.pop(); // Go back to previous screen
+      final endTime = DateTime(
+        _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+        endTimeOfDay.hour, endTimeOfDay.minute,
+      );
+
+      final booking = BookingModel(
+        id: _pendingBookingId!,
+        renterUid: user?.uid ?? '',
+        chargerUid: widget.charger.id,
+        hostUid: widget.charger.hostId,
+        slot: _selectedSlot!,
+        date: _selectedDate!,
+        slotFee: slotFee,
+        energyFee: 0.0, 
+        totalAmount: slotFee, // Paid slot fee
+        status: 'confirmed',
+        paymentId: response.paymentId ?? '',
+        createdAt: DateTime.now(),
+        startTime: startTime,
+        endTime: endTime,
+      );
+
+      context.pushReplacement('/booking-success', extra: {
+        'booking': booking,
+        'charger': widget.charger,
+      });
     }
   }
 
@@ -75,10 +118,25 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     );
   }
 
+  TimeOfDay _parseTime(String timeStr) {
+    // Handle '10:00 AM' or '10:00PM' with any space character (Web uses U+202F)
+    final match = RegExp(r'(\d+):(\d+)\s*(AM|PM)', caseSensitive: false)
+        .firstMatch(timeStr.replaceAll('\u202F', ' ').replaceAll('\u00A0', ' '));
+    if (match != null) {
+      int hour = int.parse(match.group(1)!);
+      int minute = int.parse(match.group(2)!);
+      final period = match.group(3)!.toUpperCase();
+      if (period == 'PM' && hour < 12) hour += 12;
+      if (period == 'AM' && hour == 12) hour = 0;
+      return TimeOfDay(hour: hour, minute: minute);
+    }
+    return const TimeOfDay(hour: 0, minute: 0);
+  }
+
   Future<void> _startBooking() async {
-    if (_selectedDate == null || _selectedTime == null) {
+    if (_selectedDate == null || _selectedSlot == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select date and time')),
+        const SnackBar(content: Text('Please select date and a time slot')),
       );
       return;
     }
@@ -91,18 +149,17 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       return;
     }
 
-    final subtotal = widget.charger.pricePerHour * _durationHours;
-    final totalAmount = subtotal + (subtotal * 0.05);
+    final timeParts = _selectedSlot!.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final endTimeOfDay = _parseTime(timeParts[1]);
 
     final startTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
+      _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+      startTimeOfDay.hour, startTimeOfDay.minute,
     );
-    final endTime = startTime.add(
-      Duration(minutes: (_durationHours * 60).toInt()),
+    final endTime = DateTime(
+      _selectedDate!.year, _selectedDate!.month, _selectedDate!.day,
+      endTimeOfDay.hour, endTimeOfDay.minute,
     );
 
     if (startTime.isBefore(DateTime.now())) {
@@ -112,30 +169,8 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       return;
     }
 
-    // OVERLAP VALIDATION
-    final existingBookings = ref
-        .read(chargerBookingsProvider(widget.charger.id))
-        .value;
-    if (existingBookings != null) {
-      final hasOverlap = existingBookings.any((b) {
-        if (b.status == 'cancelled' || b.status == 'pending') {
-          return false; // Ignore cancelled/pending
-        }
-        // Overlap condition: Start1 < End2 AND End1 > Start2
-        return startTime.isBefore(b.endTime) && endTime.isAfter(b.startTime);
-      });
-
-      if (hasOverlap) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Time slot overlaps with an existing booking. Please select another time.',
-            ),
-          ),
-        );
-        return;
-      }
-    }
+    // Temporary 5-min lock
+    final lockedUntil = Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 5)));
 
     final bookingId = const Uuid().v4();
     _pendingBookingId = bookingId;
@@ -145,31 +180,83 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       renterUid: user.uid,
       chargerUid: widget.charger.id,
       hostUid: widget.charger.hostId,
-      startTime: startTime,
-      endTime: endTime,
-      durationHours: _durationHours,
-      totalAmount: totalAmount,
+      slot: _selectedSlot!,
+      date: _selectedDate!,
+      slotFee: slotFee,
+      energyFee: 0.0,
+      totalAmount: slotFee,
       status: 'pending',
       paymentId: '',
       createdAt: DateTime.now(),
+      startTime: startTime,
+      endTime: endTime,
+      lockedUntil: lockedUntil,
     );
 
     await ref
         .read(bookingNotifierProvider.notifier)
         .createPendingBooking(booking);
 
-    // TODO: Ensure you use actual test key id
+    if (kIsWeb) {
+      final webOptions = {
+        'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
+        'amount': (slotFee * 100).round(), // Ensure integer
+        'currency': 'INR', // Explicit currency for Web
+        'name': 'VoltBnB',
+        'description': 'Slot Fee: ${_selectedSlot}',
+        'prefill': {
+          'contact': user.phoneNumber ?? '9999999999',
+          'email': user.email ?? ''
+        },
+        'notes': {'bookingId': bookingId},
+      };
+
+      try {
+        web_payment.openRazorpayWeb(
+          options: jsonEncode(webOptions),
+          onSuccess: (paymentId) async {
+            if (_pendingBookingId != null) {
+              await ref
+                  .read(bookingNotifierProvider.notifier)
+                  .confirmBooking(_pendingBookingId!, paymentId);
+              if (!mounted) return;
+              context.pushReplacement('/booking-success', extra: {
+                'booking': booking,
+                'charger': widget.charger,
+              });
+            }
+          },
+          onFailure: (error) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Payment failed: $error')));
+          },
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Web Payment Error: $e')));
+      }
+      return;
+    }
+
     var options = {
       'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
-      'amount': (totalAmount * 100).toInt(),
+      'amount': (slotFee * 100).round(),
+      'currency': 'INR',
       'name': 'VoltBnB',
-      'description': '${widget.charger.name} - ${_durationHours}h',
-      'prefill': {'contact': '', 'email': user.email ?? ''},
+      'description': 'Slot Fee: ${_selectedSlot}',
+      'prefill': {
+        'contact': user.phoneNumber ?? '9999999999',
+        'email': user.email ?? ''
+      },
       'notes': {'bookingId': bookingId},
     };
 
     try {
-      _razorpay.open(options);
+      _razorpay?.open(options);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -180,10 +267,12 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final subtotal = widget.charger.pricePerHour * _durationHours;
-    final serviceFee = subtotal * 0.05;
-    final totalAmount = subtotal + serviceFee;
     final bookingsAsync = ref.watch(chargerBookingsProvider(widget.charger.id));
+
+    // Simulated available slots if host did not set any
+    final dynamicSlots = widget.charger.availableSlots.isNotEmpty
+        ? widget.charger.availableSlots
+        : ['09:00 AM - 10:00 AM', '10:00 AM - 11:00 AM', '11:00 AM - 12:00 PM', '01:00 PM - 02:00 PM'];
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.charger.name)),
@@ -193,7 +282,28 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
           children: [
             SizedBox(
               height: 250,
-              child: widget.charger.imageUrl != null
+              child: widget.charger.photos.isNotEmpty
+                  ? ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.charger.photos.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 4),
+                      itemBuilder: (context, index) => CachedNetworkImage(
+                        imageUrl: widget.charger.photos[index],
+                        fit: BoxFit.cover,
+                        width: MediaQuery.of(context).size.width,
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      ),
+                    )
+                  : widget.charger.imageUrl != null
                   ? CachedNetworkImage(
                       imageUrl: widget.charger.imageUrl!,
                       fit: BoxFit.cover,
@@ -220,12 +330,33 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.charger.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.charger.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      Chip(
+                        backgroundColor: widget.charger.healthStatus == 'Excellent' 
+                          ? Colors.green.shade100 
+                          : Colors.orange.shade100,
+                        label: Text(
+                          widget.charger.healthStatus,
+                          style: TextStyle(
+                            color: widget.charger.healthStatus == 'Excellent' 
+                              ? Colors.green.shade800 
+                              : Colors.orange.shade800,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -243,6 +374,17 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  if ((widget.charger.description ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(widget.charger.description!),
+                  ],
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () =>
+                        context.push('/charger/${widget.charger.id}/reviews'),
+                    icon: const Icon(Icons.rate_review_outlined),
+                    label: Text('See Reviews (${widget.charger.reviewCount})'),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -262,189 +404,157 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today),
-                          label: Text(
-                            _selectedDate == null
-                                ? 'Select Date'
-                                : DateFormat(
-                                    'MMM dd, yyyy',
-                                  ).format(_selectedDate!),
-                          ),
-                          onPressed: () async {
-                            final date = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(
-                                const Duration(days: 30),
-                              ),
-                            );
-                            if (date != null) {
-                              setState(() => _selectedDate = date);
-                            }
-                          },
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_today),
+                    label: Text(
+                      _selectedDate == null
+                          ? 'Select Date'
+                          : DateFormat('MMM dd, yyyy').format(_selectedDate!),
+                    ),
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(
+                          const Duration(days: 30),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.access_time),
-                          label: Text(
-                            _selectedTime == null
-                                ? 'Select Time'
-                                : _selectedTime!.format(context),
-                          ),
-                          onPressed: () async {
-                            final time = await showTimePicker(
-                              context: context,
-                              initialTime: TimeOfDay.now(),
-                            );
-                            if (time != null) {
-                              setState(() => _selectedTime = time);
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _selectedDate = date;
+                          _selectedSlot = null; // reset slot selection
+                        });
+                      }
+                    },
                   ),
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Duration (Hours)'),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove_circle_outline),
-                            onPressed: _durationHours > 0.5
-                                ? () => setState(() => _durationHours -= 0.5)
-                                : null,
-                          ),
-                          Text(
-                            '\${_durationHours}h',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.add_circle_outline),
-                            onPressed: () =>
-                                setState(() => _durationHours += 0.5),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
                   const Text(
-                    'Availability',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    'Available Slots',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   bookingsAsync.when(
                     data: (bookings) {
-                      final upcomingBookings = bookings
-                          .where((b) => b.endTime.isAfter(DateTime.now()))
-                          .toList();
-                      if (upcomingBookings.isEmpty) {
-                        return const Text(
-                          'No upcoming bookings. Fully available!',
-                        );
-                      }
-                      return Column(
-                        children: upcomingBookings
-                            .map(
-                              (b) => ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: const Icon(
-                                  Icons.event_busy,
-                                  color: Colors.orange,
-                                ),
-                                title: Text(
-                                  DateFormat('MMM dd').format(b.startTime),
-                                ),
-                                subtitle: Text(
-                                  '${DateFormat.jm().format(b.startTime)} - ${DateFormat.jm().format(b.endTime)}',
-                                ),
-                                trailing: const Text(
-                                  'Booked',
-                                  style: TextStyle(color: Colors.orange),
-                                ),
-                              ),
-                            )
-                            .toList(),
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: dynamicSlots.map((slotString) {
+                          bool isLockedOrBooked = false;
+                          
+                          if (_selectedDate != null) {
+                            for (var b in bookings) {
+                              if (b.date.year == _selectedDate!.year &&
+                                  b.date.month == _selectedDate!.month &&
+                                  b.date.day == _selectedDate!.day &&
+                                  b.slot == slotString) {
+                                // Check if active/confirmed/completed
+                                if (['confirmed', 'active', 'completed'].contains(b.status)) {
+                                  isLockedOrBooked = true;
+                                  break;
+                                }
+                                // Check if pending lock is still valid
+                                if (b.status == 'pending' && b.lockedUntil != null) {
+                                  if (b.lockedUntil!.toDate().isAfter(DateTime.now())) {
+                                    isLockedOrBooked = true;
+                                    break;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                          
+                          final isSelected = _selectedSlot == slotString;
+
+                          return ChoiceChip(
+                            label: Text(slotString),
+                            selected: isSelected,
+                            onSelected: isLockedOrBooked ? null : (selected) {
+                              setState(() {
+                                _selectedSlot = selected ? slotString : null;
+                              });
+                            },
+                            backgroundColor: isLockedOrBooked ? Colors.grey.shade300 : null,
+                            selectedColor: const Color(0xFF1DB954).withAlpha(80),
+                            labelStyle: TextStyle(
+                              color: isLockedOrBooked ? Colors.grey : (isSelected ? const Color(0xFF1DB954) : Colors.black),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
                       );
                     },
                     loading: () => const CircularProgressIndicator(),
-                    error: (err, stack) =>
-                        Text('Error loading availability: $err'),
+                    error: (err, stack) => Text('Error loading availability: $err'),
                   ),
-                  const Divider(height: 32),
-                  const Text(
-                    'Price Breakdown',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '\$${widget.charger.pricePerHour.toStringAsFixed(2)} x $_durationHours hours',
+                  
+                  if (_selectedSlot != null) ...[
+                    const Divider(height: 32),
+                    const Text(
+                      'Booking Summary',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade100),
                       ),
-                      Text('\$${subtotal.toStringAsFixed(2)}'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Service Fee (5%)'),
-                      Text('\$${serviceFee.toStringAsFixed(2)}'),
-                    ],
-                  ),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Total',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Slot Reservation Fee (Pay Now)'),
+                              Text('₹${slotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Estimated Energy Cost (Pay Later)'),
+                              Text('~₹${widget.charger.pricePerHour.toStringAsFixed(2)}', style: const TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Row(
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Your slot is secured for 5 minutes after booking initiation.',
+                                  style: TextStyle(fontSize: 12, color: Colors.blue),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Text(
-                        '\$${totalAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
+                  
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _startBooking,
+                      onPressed: _selectedSlot != null ? _startBooking : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1DB954),
+                        disabledBackgroundColor: Colors.grey.shade300,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
-                        'Book Now',
+                        'Confirm & Pay Reservation Fee',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

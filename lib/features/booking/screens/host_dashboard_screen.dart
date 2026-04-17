@@ -39,6 +39,16 @@ class HostDashboardScreen extends ConsumerWidget {
     }
   }
 
+  void _updateBookingStatus(
+    WidgetRef ref,
+    String bookingId,
+    String status,
+  ) async {
+    await ref
+        .read(bookingNotifierProvider.notifier)
+        .updateBookingStatus(bookingId, status);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bookingsAsync = ref.watch(hostBookingsProvider);
@@ -56,7 +66,7 @@ class HostDashboardScreen extends ConsumerWidget {
 
           final totalEarnings = bookings
               .where((b) => b.status == 'confirmed' || b.status == 'completed')
-              .fold(0.0, (sum, item) => sum + item.totalAmount);
+              .fold(0.0, (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)));
 
           // Prepare Chart Data
           final last7Days = List.generate(
@@ -72,7 +82,7 @@ class HostDashboardScreen extends ConsumerWidget {
                       b.startTime.month == day.month &&
                       b.startTime.day == day.day,
                 )
-                .fold(0.0, (sum, item) => sum + item.totalAmount);
+                .fold(0.0, (sum, item) => sum + (item.slotFee + (item.energyFee * 0.85)));
             return dayTotal;
           }).toList();
 
@@ -198,35 +208,65 @@ class HostDashboardScreen extends ConsumerWidget {
                       '${DateFormat("hh:mm a").format(b.startTime)} - ${DateFormat("hh:mm a").format(b.endTime)}\n\$${b.totalAmount.toStringAsFixed(2)}',
                     ),
                     isThreeLine: true,
-                    trailing:
-                        b.status == 'confirmed' &&
-                            b.startTime.isBefore(
-                              DateTime.now().add(const Duration(minutes: 15)),
-                            )
-                        ? ElevatedButton(
-                            onPressed: () => _startSession(context, ref, b),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1DB954),
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Start Session'),
-                          )
-                        : Chip(
-                            label: Text(
-                              b.status.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
+                    trailing: b.status == 'pending'
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.check_circle,
+                                  color: Color(0xFF1DB954),
+                                ),
+                                onPressed: () => _updateBookingStatus(
+                                  ref,
+                                  b.id,
+                                  'confirmed',
+                                ),
                               ),
-                            ),
-                            backgroundColor:
-                                b.status == 'confirmed' ||
-                                    b.status == 'completed'
-                                ? const Color(0xFF1DB954)
-                                : (b.status == 'active'
-                                      ? Colors.blue
-                                      : Colors.grey),
-                          ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.cancel,
+                                  color: Colors.red,
+                                ),
+                                onPressed: () => _updateBookingStatus(
+                                  ref,
+                                  b.id,
+                                  'rejected',
+                                ),
+                              ),
+                            ],
+                          )
+                        : (b.status == 'confirmed' &&
+                                  b.startTime.isBefore(
+                                    DateTime.now().add(
+                                      const Duration(minutes: 15),
+                                    ),
+                                  )
+                              ? ElevatedButton(
+                                  onPressed: () =>
+                                      _startSession(context, ref, b),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF1DB954),
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Start Session'),
+                                )
+                              : Chip(
+                                  label: Text(
+                                    b.status.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  backgroundColor:
+                                      b.status == 'confirmed' ||
+                                          b.status == 'completed'
+                                      ? const Color(0xFF1DB954)
+                                      : (b.status == 'active'
+                                            ? Colors.blue
+                                            : Colors.grey),
+                                )),
                   ),
                 ),
               ),

@@ -10,8 +10,11 @@ class ChargerService {
 
   /// Create a new charger
   Future<String> createCharger(ChargerModel charger) async {
-    final docRef = await _firestore.collection('chargers').add(charger.toMap());
-    return docRef.id;
+    await _firestore
+        .collection('chargers')
+        .doc(charger.id)
+        .set(charger.toMap());
+    return charger.id;
   }
 
   /// Backward-compatible alias used in older screens
@@ -33,6 +36,20 @@ class ChargerService {
     }
   }
 
+  /// Get charger by ID as a Stream
+  Stream<ChargerModel?> getChargerStream(String chargerId) {
+    return _firestore
+        .collection('chargers')
+        .doc(chargerId)
+        .snapshots()
+        .map((doc) {
+      if (doc.exists && doc.data() != null) {
+        return ChargerModel.fromMap(doc.data()!, doc.id);
+      }
+      return null;
+    });
+  }
+
   /// Update charger
   Future<void> updateCharger(
     String chargerId,
@@ -51,7 +68,7 @@ class ChargerService {
   Stream<List<ChargerModel>> getHostChargers(String hostId) {
     return _firestore
         .collection('chargers')
-        .where('hostId', isEqualTo: hostId)
+        .where('hostUid', isEqualTo: hostId)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -64,7 +81,7 @@ class ChargerService {
   Stream<List<ChargerModel>> getAvailableChargers() {
     return _firestore
         .collection('chargers')
-        .where('available', isEqualTo: true)
+        .where('isAvailable', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -78,7 +95,7 @@ class ChargerService {
     Query<Map<String, dynamic>> query = _firestore.collection('chargers');
 
     if (filter.availableOnly) {
-      query = query.where('available', isEqualTo: true);
+      query = query.where('isAvailable', isEqualTo: true);
     }
 
     if (filter.connectorType != null) {
@@ -109,8 +126,8 @@ class ChargerService {
 
       final snapshot = await _firestore
           .collection('chargers')
-          .where('latitude', isGreaterThan: latitude - latDelta)
-          .where('latitude', isLessThan: latitude + latDelta)
+          .where('lat', isGreaterThan: latitude - latDelta)
+          .where('lat', isLessThan: latitude + latDelta)
           .get();
 
       return snapshot.docs

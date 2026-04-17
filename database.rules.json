@@ -1,11 +1,12 @@
 {
   "rules": {
-    ".read": false,
-    ".write": false,
     "sessions": {
       "$bookingId": {
-        ".read": "auth != null && (data.child('hostUid').val() === auth.uid || data.child('renterUid').val() === auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid && newData.child('renterUid').exists()) || (data.exists() && data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === data.child('hostUid').val() && newData.child('renterUid').val() === data.child('renterUid').val()))"
+        // Both renter and host for a booking can read the live session
+        ".read": "auth != null && (data.child('renterUid').val() === auth.uid || data.child('hostUid').val() === auth.uid)",
+        
+        // Only the host for the booking can write/create the session
+        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)"
       }
     }
   }

@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
-import '../services/user_service.dart';
 import 'auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 
-/// Provider for UserService
-final userServiceProvider = Provider<UserService>((ref) {
-  return UserService(ref.watch(firebaseFirestoreProvider));
+/// Shared provider for the current user's Firestore model.
+/// Used by RoleWrapperScreen, ProfileScreen, and anywhere else
+/// that needs the full UserModel.
+final currentUserModelProvider = FutureProvider<UserModel?>((ref) async {
+  final user = ref.watch(userProvider);
+  if (user == null) return null;
+  return ref.read(userServiceProvider).getUser(user.uid);
 });
 
 /// Provider to fetch current user data from Firestore
@@ -33,3 +36,4 @@ final userStreamProvider = StreamProvider<UserModel?>((ref) {
         return UserModel.fromMap(snapshot.data()!, snapshot.id);
       });
 });
+

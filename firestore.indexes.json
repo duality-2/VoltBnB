@@ -4,74 +4,57 @@
       "collectionGroup": "bookings",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "renterUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "startTime",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "driverId", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "bookings",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "hostUid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "startTime",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "hostId", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "chargers",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "isAvailable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "pricePerHour",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "isAvailable", "order": "ASCENDING" },
+        { "fieldPath": "pricePerHour", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "chargers",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "connectorType",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "pricePerHour",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "connectorType", "order": "ASCENDING" },
+        { "fieldPath": "pricePerHour", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "chargers",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "isAvailable",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "connectorType",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "pricePerHour",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "isAvailable", "order": "ASCENDING" },
+        { "fieldPath": "connectorType", "order": "ASCENDING" },
+        { "fieldPath": "pricePerHour", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chargerUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],

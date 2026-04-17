@@ -1,35 +1,44 @@
 class UserModel {
-  final String id;
+  final String uid;
   final String email;
   final String name;
-  final String? profileImageUrl;
-  final String? phoneNumber;
+  final String role; // 'host' or 'renter'
+  final String? photoUrl;
+  final String? phone;
   final String? address;
-  final String userType; // 'driver' or 'host'
+  final String? fcmToken;
+  final double walletBalance;
   final DateTime createdAt;
   final DateTime? updatedAt;
 
   UserModel({
-    required this.id,
+    required this.uid,
     required this.email,
     required this.name,
-    this.profileImageUrl,
-    this.phoneNumber,
+    required this.role,
+    this.photoUrl,
+    this.phone,
     this.address,
-    required this.userType,
+    this.fcmToken,
+    this.walletBalance = 0,
     required this.createdAt,
     this.updatedAt,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String id) {
+    final rawRole = (map['role'] ?? map['userType'] ?? 'renter').toString();
+    final normalizedRole = rawRole == 'driver' ? 'renter' : rawRole;
+
     return UserModel(
-      id: id,
+      uid: map['uid']?.toString() ?? id,
       email: map['email'] ?? '',
       name: map['name'] ?? '',
-      profileImageUrl: map['profileImageUrl'],
-      phoneNumber: map['phoneNumber'],
+      role: normalizedRole,
+      photoUrl: map['photoUrl'] ?? map['profileImageUrl'],
+      phone: map['phone'] ?? map['phoneNumber'],
       address: map['address'],
-      userType: map['userType'] ?? 'driver',
+      fcmToken: map['fcmToken'],
+      walletBalance: (map['walletBalance'] ?? 0).toDouble(),
       createdAt: map['createdAt'] != null
           ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -41,38 +50,54 @@ class UserModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'uid': uid,
       'email': email,
       'name': name,
-      'profileImageUrl': profileImageUrl,
-      'phoneNumber': phoneNumber,
+      'role': role,
+      'userType': role,
+      'photoUrl': photoUrl,
+      'profileImageUrl': photoUrl,
+      'phone': phone,
+      'phoneNumber': phone,
       'address': address,
-      'userType': userType,
+      'fcmToken': fcmToken,
+      'walletBalance': walletBalance,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
   UserModel copyWith({
-    String? id,
+    String? uid,
     String? email,
     String? name,
-    String? profileImageUrl,
-    String? phoneNumber,
+    String? role,
+    String? photoUrl,
+    String? phone,
     String? address,
-    String? userType,
+    String? fcmToken,
+    double? walletBalance,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return UserModel(
-      id: id ?? this.id,
+      uid: uid ?? this.uid,
       email: email ?? this.email,
       name: name ?? this.name,
-      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
+      role: role ?? this.role,
+      photoUrl: photoUrl ?? this.photoUrl,
+      phone: phone ?? this.phone,
       address: address ?? this.address,
-      userType: userType ?? this.userType,
+      fcmToken: fcmToken ?? this.fcmToken,
+      walletBalance: walletBalance ?? this.walletBalance,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  // Backward-compatible aliases used in older widgets.
+  String get id => uid;
+  String get userType => role;
+  String? get profileImageUrl => photoUrl;
+  String? get phoneNumber => phone;
 }
