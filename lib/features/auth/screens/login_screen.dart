@@ -5,6 +5,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 
+import '../services/auth_service.dart';
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 

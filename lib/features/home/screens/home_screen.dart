@@ -10,6 +10,8 @@ import '../../charger/providers/charger_filter_provider.dart';
 import '../../charger/models/charger_model.dart';
 import '../../auth/providers/auth_provider.dart';
 
+import '../../../core/providers/firebase_service_provider.dart';
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -28,6 +30,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _mapController?.dispose();
     super.dispose();
   }
+  bool _firebaseInitialized = false;
+  String _status = 'Checking Firebase...';
+  String _error = '';
 
   @override
   void initState() {

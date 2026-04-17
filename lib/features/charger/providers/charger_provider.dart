@@ -7,6 +7,8 @@ import 'charger_filter_provider.dart';
 
 final chargerServiceProvider = Provider<ChargerService>((ref) {
   return ChargerService(ref.watch(firebaseFirestoreProvider));
+final userServiceProvider = Provider<UserService>((ref) {
+  return UserService(ref.watch(firebaseFirestoreProvider));
 });
 
 final hostChargersProvider = StreamProvider<List<ChargerModel>>((ref) {

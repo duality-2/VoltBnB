@@ -3,6 +3,15 @@ import '../models/user_model.dart';
 import 'auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 
+import '../services/user_service.dart';
+import 'auth_provider.dart';
+import '../../../core/providers/firebase_service_provider.dart';
+
+/// Provider for UserService
+final userServiceProvider = Provider<UserService>((ref) {
+  return UserService(ref.watch(firebaseFirestoreProvider));
+});
+
 /// Provider to fetch current user data from Firestore
 final currentUserDataProvider = FutureProvider<UserModel?>((ref) async {
   final authUser = ref.watch(userProvider);

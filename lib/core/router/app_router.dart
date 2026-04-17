@@ -38,6 +38,7 @@ final routerProvider = Provider((ref) {
         return '/error';
       }
 
+      // If not authenticated, redirect to login (unless already on auth pages)
       if (!isAuthenticated) {
         if (state.matchedLocation == '/login' ||
             state.matchedLocation == '/signup' ||
@@ -53,7 +54,7 @@ final routerProvider = Provider((ref) {
         return '/';
       }
 
-      return null;
+      return null; // Allow navigation
     },
     routes: [
       GoRoute(
