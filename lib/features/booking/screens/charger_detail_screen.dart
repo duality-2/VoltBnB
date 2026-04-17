@@ -32,8 +32,49 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
   Razorpay? _razorpay;
   String? _pendingBookingId;
 
-  // Fixed slot reservation fee
-  final double slotFee = 30.0;
+  // Base slot reservation fee
+  final double _baseSlotFee = 30.0;
+
+  double get _currentSlotFee {
+    if (_selectedSlot == null) return _baseSlotFee;
+
+    final timeParts = _selectedSlot!.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final hour = startTimeOfDay.hour;
+
+    for (var rule in widget.charger.pricingRules) {
+      if (rule.startHour <= hour && rule.endHour > hour) {
+        return (_baseSlotFee * rule.multiplier);
+      }
+      // Handle overnight ranges (e.g. 22:00 to 05:00)
+      if (rule.startHour > rule.endHour) {
+        if (hour >= rule.startHour || hour < rule.endHour) {
+          return (_baseSlotFee * rule.multiplier);
+        }
+      }
+    }
+    return _baseSlotFee;
+  }
+
+  String? get _activePriceLabel {
+    if (_selectedSlot == null) return null;
+
+    final timeParts = _selectedSlot!.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final hour = startTimeOfDay.hour;
+
+    for (var rule in widget.charger.pricingRules) {
+      if (rule.startHour <= hour && rule.endHour > hour) {
+        return rule.label.toUpperCase();
+      }
+      if (rule.startHour > rule.endHour) {
+        if (hour >= rule.startHour || hour < rule.endHour) {
+          return rule.label.toUpperCase();
+        }
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -81,9 +122,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         hostUid: widget.charger.hostId,
         slot: _selectedSlot!,
         date: _selectedDate!,
-        slotFee: slotFee,
+        slotFee: _currentSlotFee,
         energyFee: 0.0, 
-        totalAmount: slotFee, // Paid slot fee
+        totalAmount: _currentSlotFee, // Paid slot fee
         status: 'confirmed',
         paymentId: response.paymentId ?? '',
         createdAt: DateTime.now(),
@@ -182,9 +223,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       hostUid: widget.charger.hostId,
       slot: _selectedSlot!,
       date: _selectedDate!,
-      slotFee: slotFee,
+      slotFee: _currentSlotFee,
       energyFee: 0.0,
-      totalAmount: slotFee,
+      totalAmount: _currentSlotFee,
       status: 'pending',
       paymentId: '',
       createdAt: DateTime.now(),
@@ -200,7 +241,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     if (kIsWeb) {
       final webOptions = {
         'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
-        'amount': (slotFee * 100).round(), // Ensure integer
+        'amount': (_currentSlotFee * 100).round(), // Ensure integer
         'currency': 'INR', // Explicit currency for Web
         'name': 'VoltBnB',
         'description': 'Slot Fee: ${_selectedSlot}',
@@ -244,7 +285,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
 
     var options = {
       'key': dotenv.env['RAZORPAY_TEST_KEY'] ?? 'rzp_test_YOUR_KEY_HERE',
-      'amount': (slotFee * 100).round(),
+      'amount': (_currentSlotFee * 100).round(),
       'currency': 'INR',
       'name': 'VoltBnB',
       'description': 'Slot Fee: ${_selectedSlot}',
@@ -507,8 +548,34 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Slot Reservation Fee (Pay Now)'),
-                              Text('₹${slotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              Row(
+                                children: [
+                                  const Text('Slot Reservation Fee (Pay Now)'),
+                                  if (_activePriceLabel != null) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _currentSlotFee > _baseSlotFee 
+                                          ? Colors.red.shade100 
+                                          : Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        _activePriceLabel!,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: _currentSlotFee > _baseSlotFee 
+                                            ? Colors.red.shade900 
+                                            : Colors.green.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              Text('₹${_currentSlotFee.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const SizedBox(height: 8),
