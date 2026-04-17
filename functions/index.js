@@ -1,4 +1,4 @@
-const { onRequest } = require("firebase-functions/v2/https");
+const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const express = require("express");
 const cors = require("cors");
@@ -6,7 +6,7 @@ const cors = require("cors");
 admin.initializeApp();
 
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({origin: true}));
 app.use(express.json());
 
 // Import Routes

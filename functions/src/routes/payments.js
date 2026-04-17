@@ -1,7 +1,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const admin = require("firebase-admin");
-const { sendNotification } = require("../services/fcm");
+const {sendNotification} = require("../services/fcm");
 
 const router = express.Router();
 
@@ -12,9 +12,9 @@ router.post("/razorpay-webhook", async (req, res) => {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || "YOUR_WEBHOOK_SECRET";
 
     const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(JSON.stringify(req.body))
-      .digest("hex");
+        .createHmac("sha256", webhookSecret)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
 
     if (expectedSignature === signature) {
       const event = req.body.event;
@@ -29,7 +29,7 @@ router.post("/razorpay-webhook", async (req, res) => {
           await db.collection("bookings").doc(bookingId).update({
             status: "confirmed",
             paymentId: paymentId,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
           // Fetch booking to notify host and renter
@@ -44,14 +44,14 @@ router.post("/razorpay-webhook", async (req, res) => {
         }
       }
 
-      res.status(200).json({ status: "ok" });
+      res.status(200).json({status: "ok"});
     } else {
       console.error("Invalid Razorpay Signature");
-      res.status(400).json({ error: "Invalid signature" });
+      res.status(400).json({error: "Invalid signature"});
     }
   } catch (error) {
     console.error("Webhook Error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({error: "Internal Server Error"});
   }
 });
 

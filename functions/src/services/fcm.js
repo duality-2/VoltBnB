@@ -18,7 +18,7 @@ const sendNotification = async (uid, title, body) => {
     }
 
     const message = {
-      notification: { title, body },
+      notification: {title, body},
       token: fcmToken,
     };
 
@@ -38,4 +38,4 @@ const sendNotification = async (uid, title, body) => {
   }
 };
 
-module.exports = { sendNotification };
+module.exports = {sendNotification};
