@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/charger_provider.dart';
 
 class MyChargersScreen extends ConsumerWidget {
@@ -36,7 +37,21 @@ class MyChargersScreen extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
                   leading: charger.photos.isNotEmpty
-                      ? Image.network(charger.photos.first, width: 50, height: 50, fit: BoxFit.cover)
+                      ? CachedNetworkImage(
+                          imageUrl: charger.photos.first,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            width: 50,
+                            height: 50,
+                            color: Colors.grey.shade200,
+                          ),
+                          errorWidget: (context, url, error) => const Icon(
+                            Icons.broken_image,
+                            size: 50,
+                          ),
+                        )
                       : const Icon(Icons.ev_station, size: 50),
                   title: Text(charger.title),
                   subtitle: Text('\$ \${charger.pricePerHour.toStringAsFixed(2)} / hr\\n\${charger.address}'),
@@ -50,7 +65,7 @@ class MyChargersScreen extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update status')));
                       }
                     },
-                    activeColor: const Color(0xFF1DB954),
+                    activeThumbColor: const Color(0xFF1DB954),
                   ),
                 ),
               );

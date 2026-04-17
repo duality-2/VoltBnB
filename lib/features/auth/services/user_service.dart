@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 
 class UserService {
@@ -8,7 +9,11 @@ class UserService {
 
   /// Create a new user document in Firestore
   Future<void> createUser(UserModel user) async {
-    await _firestore.collection('users').doc(user.id).set(user.toMap());
+    try {
+      await _firestore.collection('users').doc(user.uid).set(user.toMap());
+    } catch (e) {
+      throw Exception('Failed to create user: $e');
+    }
   }
 
   /// Get user by ID
@@ -20,7 +25,7 @@ class UserService {
       }
       return null;
     } catch (e) {
-      print('Error fetching user: $e');
+      debugPrint('Error fetching user: $e');
       return null;
     }
   }
@@ -36,18 +41,18 @@ class UserService {
     await _firestore.collection('users').doc(userId).delete();
   }
 
-  /// Get all hosts (users with userType = 'host')
+  /// Get all hosts (users with role = 'host')
   Future<List<UserModel>> getHosts() async {
     try {
       final snapshot = await _firestore
           .collection('users')
-          .where('userType', isEqualTo: 'host')
+          .where('role', isEqualTo: 'host')
           .get();
       return snapshot.docs
           .map((doc) => UserModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error fetching hosts: $e');
+      debugPrint('Error fetching hosts: $e');
       return [];
     }
   }
@@ -60,5 +65,17 @@ class UserService {
       }
       return null;
     });
+  }
+
+  /// Save FCM token to user document
+  Future<void> saveFcmToken(String userId, String token) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'fcmToken': token,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Error saving FCM token: $e');
+    }
   }
 }

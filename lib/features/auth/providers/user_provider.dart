@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
+import 'auth_provider.dart';
+import '../../../core/providers/firebase_service_provider.dart';
+
 import '../services/user_service.dart';
 import 'auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/services/user_service.dart';
 
 /// Firebase Authentication instance provider
 final firebaseAuthProvider = Provider<FirebaseAuth>((ref) {
@@ -26,4 +27,9 @@ final firebaseAuthStateProvider = StreamProvider<User?>((ref) {
 /// Current Firebase user provider
 final firebaseUserProvider = Provider<User?>((ref) {
   return ref.watch(firebaseAuthStateProvider).value;
+});
+
+/// User service provider
+final userServiceProvider = Provider<UserService>((ref) {
+  return UserService(ref.watch(firebaseFirestoreProvider));
 });

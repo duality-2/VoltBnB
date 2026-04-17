@@ -8,8 +8,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(userProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('VoltBnB'),
@@ -28,9 +26,9 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "Welcome, \${user?.email ?? 'User'}!",
-              style: const TextStyle(fontSize: 20),
+            const Text(
+              "Welcome to VoltBnB!",
+              style: TextStyle(fontSize: 20),
             ),
             const SizedBox(height: 24),
             ElevatedButton(

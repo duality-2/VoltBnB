@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../providers/auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
+
 import '../services/auth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -36,13 +39,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final auth = ref.read(firebaseAuthProvider);
-      final authService = AuthService(auth);
+      final authService = ref.watch(authServiceProvider);
+      final userService = ref.watch(userServiceProvider);
 
-      await authService.signInWithEmail(
+      final userCredential = await authService.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      // Save FCM token for push notifications
+      if (userCredential.user != null) {
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await userService.saveFcmToken(userCredential.user!.uid, fcmToken);
+        }
+      }
 
       if (mounted) {
         context.go('/');
