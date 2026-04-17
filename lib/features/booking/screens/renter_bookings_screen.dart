@@ -21,8 +21,14 @@ class RenterBookingsScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My Bookings'),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+            unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
+            indicatorColor: const Color(0xFF22C55E),
+            labelColor: const Color(0xFF22C55E),
+            unselectedLabelColor: const Color(0xFF6B7280),
+            indicatorWeight: 3,
+            tabs: const [
               Tab(text: 'Upcoming'),
               Tab(text: 'Active'),
               Tab(text: 'Past'),
@@ -98,18 +104,31 @@ class _BookingList extends StatelessWidget {
       itemBuilder: (context, index) {
         final booking = bookings[index];
 
-        Color statusColor = Colors.grey;
+        Color backgroundColor = const Color(0xFFF3F4F6);
+        Color textColor = const Color(0xFF4B5563);
+
         if (booking.status == 'confirmed' || booking.status == 'completed') {
-          statusColor = const Color(0xFF1DB954);
+          backgroundColor = const Color(0xFFDCFCE7);
+          textColor = const Color(0xFF15803D);
+        }
+        if (booking.status == 'awaiting_approval') {
+          backgroundColor = const Color(0xFFFEF3C7);
+          textColor = const Color(0xFFB45309);
         }
         if (booking.status == 'active') {
-          statusColor = Colors.blue;
+          backgroundColor = const Color(0xFFDBEAFE);
+          textColor = const Color(0xFF1E40AF);
         }
         if (booking.status == 'cancelled') {
-          statusColor = Colors.red;
+          backgroundColor = const Color(0xFFFEE2E2);
+          textColor = const Color(0xFF991B1B);
         }
 
-        return BookingCard(booking: booking, statusColor: statusColor);
+        return BookingCard(
+          booking: booking, 
+          statusColor: textColor,
+          statusBg: backgroundColor,
+        );
       },
     );
   }
@@ -118,11 +137,13 @@ class _BookingList extends StatelessWidget {
 class BookingCard extends ConsumerWidget {
   final BookingModel booking;
   final Color statusColor;
+  final Color statusBg;
 
   const BookingCard({
     super.key,
     required this.booking,
     required this.statusColor,
+    required this.statusBg,
   });
 
   @override
@@ -141,15 +162,27 @@ class BookingCard extends ConsumerWidget {
               children: [
                 Text(
                   DateFormat('MMM dd, yyyy').format(booking.startTime),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Chip(
-                  label: Text(
-                    booking.status.toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF111827),
+                    fontSize: 15,
                   ),
-                  backgroundColor: statusColor,
-                  visualDensity: VisualDensity.compact,
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    booking.status.toUpperCase(),
+                    style: GoogleFonts.inter(
+                      color: statusColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -157,9 +190,10 @@ class BookingCard extends ConsumerWidget {
             chargerAsync.when(
               data: (charger) => Text(
                 charger?.name ?? 'Unknown Charger',
-                style: const TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF374151),
                 ),
               ),
               loading: () => const Skeletonizer(
@@ -177,24 +211,39 @@ class BookingCard extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(
               '${DateFormat("hh:mm a").format(booking.startTime)} - ${DateFormat("hh:mm a").format(booking.endTime)}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF6B7280),
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Total: \$${booking.totalAmount.toStringAsFixed(2)}',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              'Total Paid: ₹${booking.totalAmount.toStringAsFixed(0)}',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF111827),
+                fontSize: 15,
+              ),
             ),
             if (booking.status == 'active') ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
+                height: 48,
                 child: ElevatedButton(
                   onPressed: () =>
                       context.push('/live-session', extra: booking),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: const Color(0xFF111827),
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('View Live Session'),
+                  child: Text(
+                    'View Live Session',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -202,6 +251,7 @@ class BookingCard extends ConsumerWidget {
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
+                height: 48,
                 child: OutlinedButton(
                   onPressed: () {
                     showDialog(
@@ -209,7 +259,19 @@ class BookingCard extends ConsumerWidget {
                       builder: (context) => ReviewDialog(booking: booking),
                     );
                   },
-                  child: const Text('Leave a Review'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Leave a Review',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF374151),
+                    ),
+                  ),
                 ),
               ),
             ],

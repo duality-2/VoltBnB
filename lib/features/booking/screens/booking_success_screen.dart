@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/booking_model.dart';
 import '../../charger/models/charger_model.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class BookingSuccessScreen extends StatelessWidget {
   final BookingModel booking;
@@ -12,7 +13,7 @@ class BookingSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1DB954),
+      backgroundColor: const Color(0xFFF59E0B), // Amber for Awaiting Approval
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -21,70 +22,92 @@ class BookingSuccessScreen extends StatelessWidget {
               const SizedBox(height: 40),
               const Icon(Icons.check_circle, size: 100, color: Colors.white),
               const SizedBox(height: 24),
-              const Text(
-                'Booking Confirmed!',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+              Text(
+                'Booking Requested!',
+                style: GoogleFonts.inter(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
                   color: Colors.white,
+                  letterSpacing: -1,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Text(
-                'Your time slot at ${charger.name} has been successfully reserved. The host has been notified.',
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
+                'Your request for ${charger.name} has been sent. The host will review and approve it shortly.',
+                style: GoogleFonts.inter(
+                  fontSize: 16, 
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                 ),
                 child: Text(
-                  'Booking ID: ${booking.id.substring(0, 8).toUpperCase()}',
-                  style: const TextStyle(
+                  'BOOKING ID: ${booking.id.substring(0, 8).toUpperCase()}',
+                  style: GoogleFonts.inter(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    letterSpacing: 1,
                   ),
                 ),
               ),
               const SizedBox(height: 32),
               Card(
+                elevation: 0,
+                color: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Text(
+                      Text(
                         'While you charge...',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.inter(
+                          fontSize: 18, 
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF111827),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.orangeAccent,
-                          child: Icon(Icons.local_cafe, color: Colors.white),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.local_cafe_rounded, color: Color(0xFFF97316)),
                         ),
-                        title: const Text('Nearby Cafe'),
-                        subtitle: const Text('Starbucks - 0.2 miles away'),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        title: Text('Nearby Cafe', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        subtitle: Text('Starbucks • 0.2 km', style: GoogleFonts.inter(color: Colors.grey, fontSize: 13)),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                         onTap: () {},
                       ),
                       const Divider(),
                       ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.blueAccent,
-                          child: Icon(Icons.shopping_bag, color: Colors.white),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.shopping_bag_rounded, color: Color(0xFF3B82F6)),
                         ),
-                        title: const Text('Shopping Mall'),
-                        subtitle: const Text('Westfield - 0.5 miles away'),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        title: Text('Shopping Mall', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        subtitle: Text('Westfield • 0.5 km', style: GoogleFonts.inter(color: Colors.grey, fontSize: 13)),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                         onTap: () {},
                       ),
                     ],
@@ -94,44 +117,54 @@ class BookingSuccessScreen extends StatelessWidget {
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 56,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // Typically you'd launch Maps here using url_launcher
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Launching Maps...')),
                     );
                   },
-                  icon: const Icon(Icons.directions),
-                  label: const Text('Get Directions'),
+                  icon: const Icon(Icons.directions_rounded),
+                  label: Text('Get Directions', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
-                    foregroundColor: Colors.black87,
+                    foregroundColor: const Color(0xFF111827),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(100),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Navigate to Live Session for driver
-                    context.push('/live-session', extra: booking);
-                  },
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan QR to Check-in (Mock)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
+              if (booking.status == 'confirmed')
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      context.push('/live-session', extra: booking);
+                    },
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    label: Text('Check-in to Charger', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF111827),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => context.go('/'),
                 style: TextButton.styleFrom(foregroundColor: Colors.white),
-                child: const Text('Back to Home'),
+                child: Text(
+                  'Back to Home',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
               ),
               const SizedBox(height: 24),
             ],

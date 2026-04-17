@@ -6,8 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import '../../auth/providers/auth_provider.dart';
 
-class NotificationsScreen extends ConsumerWidget {
-  const NotificationsScreen({super.key});
+class HostNotificationsScreen extends ConsumerWidget {
+  const HostNotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,7 +23,7 @@ class NotificationsScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
-          'Notifications',
+          'Host Notifications',
           style: GoogleFonts.inter(fontWeight: FontWeight.w700),
         ),
         backgroundColor: Colors.white,
@@ -60,43 +60,22 @@ class NotificationsScreen extends ConsumerWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data();
-              final title = (data['title'] ?? 'Update').toString();
+              final title = (data['title'] ?? 'Host Alert').toString();
               final body = (data['body'] ?? '').toString();
               final createdAt = data['createdAt'] is Timestamp
                   ? (data['createdAt'] as Timestamp).toDate()
                   : DateTime.now();
               final read = data['read'] == true;
-              final type = (data['type'] ?? 'general').toString();
-
-              // Determine icon and theme color based on notification type
-              IconData iconData = Icons.notifications_active_rounded;
-              Color themeColor = const Color(0xFF3B82F6); // Default Blue
-
-              if (type == 'queue') {
-                iconData = Icons.group_add_rounded;
-                themeColor = const Color(0xFFF59E0B); // Orange
-              } else if (type == 'nudge' || type == 'idle_fee') {
-                iconData = Icons.warning_amber_rounded;
-                themeColor = const Color(0xFFEF4444); // Red
-              } else if (type == 'reroute') {
-                iconData = Icons.alt_route_rounded;
-                themeColor = const Color(0xFF8B5CF6); // Purple
-              }
-
-              // Fallback to standard outlined icon if read and general
-              if (read && type == 'general') {
-                iconData = Icons.notifications_none_rounded;
-              }
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Card(
                   elevation: 0,
-                  color: read ? Colors.white : const Color(0xFFEFF6FF), // Tinted blue for unread
+                  color: read ? Colors.white : const Color(0xFFF0FDF4), // Tinted green for unread
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: read ? const Color(0xFFE5E7EB) : const Color(0xFFDBEAFE),
+                      color: read ? const Color(0xFFE5E7EB) : const Color(0xFFBBF7D0),
                     ),
                   ),
                   child: ListTile(
@@ -104,11 +83,11 @@ class NotificationsScreen extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: read ? const Color(0xFFF3F4F6) : themeColor,
+                        color: read ? const Color(0xFFF3F4F6) : const Color(0xFF22C55E),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        iconData,
+                        read ? Icons.notifications_none_rounded : Icons.notifications_active_rounded,
                         color: read ? const Color(0xFF6B7280) : Colors.white,
                         size: 20,
                       ),
@@ -183,8 +162,8 @@ class NotificationsScreen extends ConsumerWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF3F4F6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -204,7 +183,7 @@ class NotificationsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            "We'll notify you about your bookings here.",
+            "We'll notify you about your host activites here.",
             style: GoogleFonts.inter(
               color: const Color(0xFF6B7280),
               fontSize: 14,

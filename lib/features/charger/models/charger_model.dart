@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'special_price_rule.dart';
 
 class ChargerModel {
   final String id;
@@ -23,6 +24,7 @@ class ChargerModel {
   final DateTime? updatedAt;
   final List<String> availableSlots;
   final String healthStatus;
+  final List<SpecialPriceRule> pricingRules;
 
   ChargerModel({
     required this.id,
@@ -47,6 +49,7 @@ class ChargerModel {
     this.updatedAt,
     this.availableSlots = const [],
     this.healthStatus = 'Good',
+    this.pricingRules = const [],
   });
 
   factory ChargerModel.fromMap(Map<String, dynamic> map, String id) {
@@ -91,6 +94,10 @@ class ChargerModel {
           : null,
       availableSlots: List<String>.from(map['availableSlots'] ?? []),
       healthStatus: map['healthStatus'] ?? 'Good',
+      pricingRules: (map['pricingRules'] as List?)
+              ?.map((r) => SpecialPriceRule.fromMap(r as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -118,6 +125,7 @@ class ChargerModel {
       'updatedAt': updatedAt?.toIso8601String(),
       'availableSlots': availableSlots,
       'healthStatus': healthStatus,
+      'pricingRules': pricingRules.map((r) => r.toMap()).toList(),
     };
   }
 
@@ -144,6 +152,7 @@ class ChargerModel {
     DateTime? updatedAt,
     List<String>? availableSlots,
     String? healthStatus,
+    List<SpecialPriceRule>? pricingRules,
   }) {
     return ChargerModel(
       id: id ?? this.id,
@@ -168,6 +177,7 @@ class ChargerModel {
       updatedAt: updatedAt ?? this.updatedAt,
       availableSlots: availableSlots ?? this.availableSlots,
       healthStatus: healthStatus ?? this.healthStatus,
+      pricingRules: pricingRules ?? this.pricingRules,
     );
   }
 }

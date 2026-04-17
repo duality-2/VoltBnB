@@ -39,12 +39,21 @@ class BookingNotifier extends Notifier<AsyncValue<void>> {
     });
   }
 
-  Future<void> confirmBooking(String bookingId, String paymentId) async {
+  Future<void> requestApproval(String bookingId, String paymentId) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await ref
           .read(bookingServiceProvider)
-          .updateBookingStatus(bookingId, 'confirmed', paymentId: paymentId);
+          .updateBookingStatus(bookingId, 'awaiting_approval', paymentId: paymentId);
+    });
+  }
+
+  Future<void> confirmBooking(String bookingId) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await ref
+          .read(bookingServiceProvider)
+          .updateBookingStatus(bookingId, 'confirmed');
     });
   }
 
