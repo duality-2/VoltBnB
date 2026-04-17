@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   LatLng _initialCenter = LatLng(28.6139, 77.2090);
+  LatLng? _currentLocation;
+  List<ChargerModel> _dummyChargers = const [];
   bool _isOffline = false;
 
   @override
@@ -62,9 +65,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       setState(() {
         _initialCenter = nextCenter;
+        _currentLocation = nextCenter;
+        _dummyChargers = _generateDummyChargers(position);
       });
       _mapController.move(nextCenter, 15.0);
     } catch (_) {}
+  }
+
+  List<ChargerModel> _generateDummyChargers(Position currentPos) {
+    final random = Random();
+    const earthRadiusKm = 6371.0;
+
+    double randomDistanceKm(int index) {
+      if (index < 2) {
+        return 0.25 + random.nextDouble() * 0.65;
+      }
+      if (index < 4) {
+        return 0.8 + random.nextDouble() * 0.8;
+      }
+      return 1.4 + random.nextDouble() * 0.6;
+    }
+
+    double randomBearingRad() {
+      return random.nextDouble() * 2 * pi;
+    }
+
+    final baseLat = currentPos.latitude * pi / 180;
+    final baseLng = currentPos.longitude * pi / 180;
+
+    return List.generate(6, (index) {
+      final distanceKm = randomDistanceKm(index);
+      final bearing = randomBearingRad();
+      final angularDistance = distanceKm / earthRadiusKm;
+
+      final latRadians = asin(
+        sin(baseLat) * cos(angularDistance) +
+            cos(baseLat) * sin(angularDistance) * cos(bearing),
+      );
+
+      final lngRadians =
+          baseLng +
+          atan2(
+            sin(bearing) * sin(angularDistance) * cos(baseLat),
+            cos(angularDistance) - sin(baseLat) * sin(latRadians),
+          );
+
+      final isAvailable = index % 3 != 1 || random.nextBool();
+
+      return ChargerModel(
+        id: 'dummy_charger_$index',
+        hostId: 'demo-host',
+        name: 'Demo Charger ${index + 1}',
+        description: 'Synthetic charger for hackathon demo use only.',
+        address: 'Demo Zone ${index + 1}',
+        latitude: latRadians * 180 / pi,
+        longitude: lngRadians * 180 / pi,
+        chargerType: index.isEven ? 'CCS2' : 'Type 2',
+        powerKw: 22 + (index * 7.5),
+        pricePerHour: 20 + random.nextInt(40),
+        available: isAvailable,
+        totalSlots: 2 + random.nextInt(3),
+        occupiedSlots: isAvailable ? 0 : 1 + random.nextInt(2),
+        amenities: const ['Fast Charging', 'Parking', '24/7 Access'],
+        rating: 4.2 + (random.nextDouble() * 0.7),
+        reviewCount: 12 + random.nextInt(60),
+        createdAt: DateTime.now(),
+        availableSlots: const [],
+        healthStatus: isAvailable ? 'Good' : 'Busy',
+      );
+    });
   }
 
   List<ChargerModel> _applySearch(
@@ -79,6 +148,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           charger.address.toLowerCase().contains(query) ||
           (charger.description ?? '').toLowerCase().contains(query);
     }).toList();
+  }
+
+  Marker _buildChargerMarker(
+    ChargerModel charger, {
+    required VoidCallback onTap,
+  }) {
+    final markerColor = charger.available
+        ? const Color(0xFF00E676)
+        : Colors.redAccent;
+
+    return Marker(
+      point: LatLng(charger.latitude, charger.longitude),
+      width: 54,
+      height: 54,
+      builder: (context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: markerColor,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: markerColor.withValues(alpha: 0.45),
+                blurRadius: 14,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 24),
+        ),
+      ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+    );
+  }
+
+  Marker _buildCurrentLocationMarker() {
+    final currentLocation = _currentLocation;
+    if (currentLocation == null) {
+      return Marker(
+        point: _initialCenter,
+        width: 0,
+        height: 0,
+        builder: (_) => const SizedBox.shrink(),
+      );
+    }
+
+    return Marker(
+      point: currentLocation,
+      width: 72,
+      height: 72,
+      builder: (context) => Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1E88E5).withValues(alpha: 0.18),
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1E88E5).withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+          ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scaleXY(
+                begin: 0.92,
+                end: 1.08,
+                duration: 1.2.seconds,
+                curve: Curves.easeInOut,
+              ),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const RadialGradient(
+                colors: [Color(0xFF64B5F6), Color(0xFF1565C0)],
+              ),
+              border: Border.all(color: Colors.white, width: 3),
+            ),
+            child: const Icon(
+              Icons.my_location_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openFilterSheet() {
@@ -124,7 +286,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   DropdownButtonFormField<String>(
-                  // ignore: deprecated_member_use
+                    // ignore: deprecated_member_use
                     value: selectedConnector,
                     decoration: const InputDecoration(
                       labelText: 'Connector Type',
@@ -136,7 +298,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       DropdownMenuItem(value: 'Type 2', child: Text('Type 2')),
                       DropdownMenuItem(value: 'CCS1', child: Text('CCS1')),
                       DropdownMenuItem(value: 'CCS2', child: Text('CCS2')),
-                      DropdownMenuItem(value: 'CHAdeMO', child: Text('CHAdeMO')),
+                      DropdownMenuItem(
+                        value: 'CHAdeMO',
+                        child: Text('CHAdeMO'),
+                      ),
                       DropdownMenuItem(value: 'Tesla', child: Text('Tesla')),
                     ],
                     onChanged: (value) =>
@@ -148,7 +313,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                       const Text(
                         'Max Price/hr',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
                       ),
                       Text(
                         '\$${maxPrice.toStringAsFixed(0)}',
@@ -177,7 +345,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: SwitchListTile(
                       activeThumbColor: const Color(0xFF00E676),
                       value: availableOnly,
-                      onChanged: (value) => setModalState(() => availableOnly = value),
+                      onChanged: (value) =>
+                          setModalState(() => availableOnly = value),
                       title: const Text(
                         'Available right now',
                         style: TextStyle(fontWeight: FontWeight.w600),
@@ -252,55 +421,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // 1. The Map Layer
           chargersAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Center(child: Text('Failed to load map: $error')),
+            error: (error, _) =>
+                Center(child: Text('Failed to load map: $error')),
             data: (chargers) {
-              final visibleChargers = _applySearch(
-                chargers,
-                _searchController.text,
-              );
+              final visibleChargers = _applySearch([
+                ...chargers,
+                ..._dummyChargers,
+              ], _searchController.text);
 
               final markers = visibleChargers
                   .map(
-                    (charger) => Marker(
-                      point: LatLng(charger.latitude, charger.longitude),
-                      width: 50,
-                      height: 50,
-                      builder: (context) => GestureDetector(
-                        onTap: () => context.push(
-                          '/charger/${charger.id}',
-                          extra: charger,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: charger.available
-                                ? const Color(0xFF00E676)
-                                : Colors.redAccent,
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: (charger.available
-                                        ? const Color(0xFF00E676)
-                                        : Colors.redAccent)
-                                    .withValues(alpha: 0.5),
-                                blurRadius: 12,
-                                spreadRadius: 2,
-                              )
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.bolt_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ).animate().scale(
-                            duration: 400.ms,
-                            curve: Curves.easeOutBack,
-                          ),
+                    (charger) => _buildChargerMarker(
+                      charger,
+                      onTap: () {
+                        if (charger.id.startsWith('dummy_charger_')) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${charger.name} - ${charger.available ? 'Available' : 'Busy'}',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        context.push('/charger/${charger.id}', extra: charger);
+                      },
                     ),
                   )
                   .toList();
+
+              if (_currentLocation != null) {
+                markers.insert(0, _buildCurrentLocationMarker());
+              }
 
               return FlutterMap(
                 mapController: _mapController,
@@ -310,12 +462,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   maxZoom: 18.0,
                 ),
                 children: [
-                   TileLayer(
-                      urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
-                      additionalOptions: {
-                        'accessToken': dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '',
-                      },
-                    ),
+                  TileLayer(
+                    urlTemplate:
+                        'https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN']}',
+                    additionalOptions: {
+                      'accessToken': dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '',
+                    },
+                  ),
                   MarkerLayer(markers: markers),
                 ],
               );
@@ -331,11 +484,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: MaterialBanner(
                 backgroundColor: Colors.redAccent,
                 contentTextStyle: const TextStyle(color: Colors.white),
-                content: const Text('You are offline. Map data may be outdated.'),
+                content: const Text(
+                  'You are offline. Map data may be outdated.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => setState(() => _isOffline = false),
-                    child: const Text('Dismiss', style: TextStyle(color: Colors.white)),
+                    child: const Text(
+                      'Dismiss',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -346,69 +504,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             top: MediaQuery.of(context).padding.top + (_isOffline ? 60 : 16),
             left: 16,
             right: 16,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(100),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(100),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      )
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.notifications_none_rounded),
-                        onPressed: () => context.push('/notifications'),
+            child:
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(100),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 4,
                       ),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Search areas or chargers...',
-                            hintStyle: TextStyle(color: Colors.grey.shade500),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
-                        ),
+                        ],
                       ),
-                      if (_searchController.text.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                        ),
-                      Container(
-                        margin: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.black,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.tune_rounded, color: Colors.white),
-                          onPressed: _openFilterSheet,
-                        ),
-                      )
-                    ],
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_none_rounded),
+                            onPressed: () => context.push('/notifications'),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (_) => setState(() {}),
+                              decoration: InputDecoration(
+                                hintText: 'Search areas or chargers...',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade500,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                filled: false,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                          if (_searchController.text.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() {});
+                              },
+                            ),
+                          Container(
+                            margin: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.tune_rounded,
+                                color: Colors.white,
+                              ),
+                              onPressed: _openFilterSheet,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
+                ).animate().slideY(
+                  begin: -1,
+                  duration: 500.ms,
+                  curve: Curves.easeOutCirc,
                 ),
-              ),
-            ).animate().slideY(begin: -1, duration: 500.ms, curve: Curves.easeOutCirc),
           ),
 
           // 4. Bottom Horizontal Card List
@@ -422,10 +595,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 loading: () => const SizedBox.shrink(),
                 error: (error, _) => const SizedBox.shrink(),
                 data: (chargers) {
-                  final visibleChargers = _applySearch(
-                    chargers,
-                    _searchController.text,
-                  );
+                  final visibleChargers = _applySearch([
+                    ...chargers,
+                    ..._dummyChargers,
+                  ], _searchController.text);
 
                   if (visibleChargers.isEmpty) {
                     return Align(
@@ -440,7 +613,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 20,
-                            )
+                            ),
                           ],
                         ),
                         child: const Text(
@@ -459,133 +632,157 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     itemBuilder: (context, index) {
                       final charger = visibleChargers[index];
                       return SizedBox(
-                        width: MediaQuery.of(context).size.width * 0.85,
-                        child: GestureDetector(
-                          onTap: () => context.push(
-                            '/charger/${charger.id}',
-                            extra: charger,
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(32),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 24,
-                                  offset: const Offset(0, 12),
-                                )
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF8FAFC),
-                                        borderRadius: BorderRadius.circular(16),
+                            width: MediaQuery.of(context).size.width * 0.85,
+                            child: GestureDetector(
+                              onTap: () => context.push(
+                                '/charger/${charger.id}',
+                                extra: charger,
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(32),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.08,
                                       ),
-                                      child: const Icon(
-                                        Icons.ev_station_rounded,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            charger.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            charger.address,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Colors.grey.shade600,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 12),
                                     ),
                                   ],
                                 ),
-                                const Spacer(),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                padding: const EdgeInsets.all(20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: charger.available
-                                            ? const Color(0xFFE8F5E9)
-                                            : Colors.red.shade50,
-                                        borderRadius: BorderRadius.circular(100),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 8,
-                                            height: 8,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: charger.available
-                                                  ? const Color(0xFF00E676)
-                                                  : Colors.redAccent,
-                                            ),
-                                          ).animate(
-                                              onPlay: (controller) =>
-                                                  controller.repeat(reverse: true))
-                                           .scaleXY(end: charger.available ? 1.5 : 1, duration: 800.ms),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            charger.available ? 'Available' : 'Busy',
-                                            style: TextStyle(
-                                              color: charger.available
-                                                  ? Colors.green.shade800
-                                                  : Colors.red.shade800,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 12,
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF8FAFC),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
                                             ),
                                           ),
-                                        ],
-                                      ),
+                                          child: const Icon(
+                                            Icons.ev_station_rounded,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                charger.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                charger.address,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: Colors.grey.shade600,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '\$${charger.pricePerHour}/hr',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 20,
-                                      ),
+                                    const Spacer(),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: charger.available
+                                                ? const Color(0xFFE8F5E9)
+                                                : Colors.red.shade50,
+                                            borderRadius: BorderRadius.circular(
+                                              100,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: charger.available
+                                                          ? const Color(
+                                                              0xFF00E676,
+                                                            )
+                                                          : Colors.redAccent,
+                                                    ),
+                                                  )
+                                                  .animate(
+                                                    onPlay: (controller) =>
+                                                        controller.repeat(
+                                                          reverse: true,
+                                                        ),
+                                                  )
+                                                  .scaleXY(
+                                                    end: charger.available
+                                                        ? 1.5
+                                                        : 1,
+                                                    duration: 800.ms,
+                                                  ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                charger.available
+                                                    ? 'Available'
+                                                    : 'Busy',
+                                                style: TextStyle(
+                                                  color: charger.available
+                                                      ? Colors.green.shade800
+                                                      : Colors.red.shade800,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          '\$${charger.pricePerHour}/hr',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ).animate().slideX(
+                          )
+                          .animate()
+                          .slideX(
                             begin: 0.2,
                             delay: (index * 100).ms,
                             duration: 400.ms,
                             curve: Curves.easeOutBack,
-                          ).fadeIn();
+                          )
+                          .fadeIn();
                     },
                   );
                 },
