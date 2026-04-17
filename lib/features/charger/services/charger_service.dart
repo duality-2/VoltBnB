@@ -48,7 +48,7 @@ class ChargerService {
   Stream<List<ChargerModel>> getHostChargers(String hostUid) {
     return _firestore
         .collection('chargers')
-        .where('hostUid', isEqualTo: hostUid)
+        .where('hostId', isEqualTo: hostId)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -61,7 +61,7 @@ class ChargerService {
   Stream<List<ChargerModel>> getAvailableChargers() {
     return _firestore
         .collection('chargers')
-        .where('isAvailable', isEqualTo: true)
+        .where('available', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -72,10 +72,52 @@ class ChargerService {
 
   Stream<List<ChargerModel>> getAllChargers() {
     return _firestore.collection('chargers').snapshots().map((snapshot) {
+  /// Get chargers by location (within radius)
+  Future<List<ChargerModel>> getChargersByLocation(
+    double latitude,
+    double longitude,
+    double radiusInKm,
+  ) async {
+    try {
+      // Approximate conversion: 1 degree ≈ 111 km
+      double latDelta = radiusInKm / 111.0;
+      double lonDelta = radiusInKm / (111.0 * DateTime.now().month.toDouble());
+
+      final snapshot = await _firestore
+          .collection('chargers')
+          .where('latitude', isGreaterThan: latitude - latDelta)
+          .where('latitude', isLessThan: latitude + latDelta)
+          .get();
+
+      return snapshot.docs
+          .where((doc) {
+            final charger = ChargerModel.fromMap(doc.data(), doc.id);
+            return (charger.longitude - longitude).abs() < lonDelta;
+          })
+          .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      print('Error fetching chargers by location: $e');
+      return [];
+    }
+  }
+
+  /// Search chargers by name
+  Future<List<ChargerModel>> searchChargers(String query) async {
+    try {
+      final snapshot = await _firestore
+          .collection('chargers')
+          .where('name', isGreaterThanOrEqualTo: query)
+          .where('name', isLessThan: query + 'z')
+          .get();
+
       return snapshot.docs
           .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
           .toList();
-    });
+    } catch (e) {
+      print('Error searching chargers: $e');
+      return [];
+    }
   }
 
   /// Get chargers filtered on the server.

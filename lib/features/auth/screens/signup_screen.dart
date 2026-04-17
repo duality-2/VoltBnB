@@ -6,6 +6,10 @@ import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 
+import '../services/auth_service.dart';
+
+import '../services/user_service.dart';
+
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
@@ -45,6 +49,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     try {
       final authService = ref.watch(authServiceProvider);
       final userService = ref.watch(userServiceProvider);
+      final auth = ref.read(firebaseAuthProvider);
+      
+      final firestore = ref.read(firebaseFirestoreProvider);
+      
 
       // Create auth user
       final userCredential = await authService.signUpWithEmail(

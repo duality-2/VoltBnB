@@ -1,26 +1,26 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
-  final String uid;
-  final String name;
+  final String id;
   final String email;
   final String? phone;
   final String? photoUrl;
   final String role; // 'host' | 'renter'
   final String? fcmToken;
+  final String name;
+  final String userType; // 'driver' or 'host'
   final DateTime createdAt;
-  final double walletBalance;
+  final DateTime? updatedAt;
 
   UserModel({
-    required this.uid,
-    required this.name,
+    required this.id,
     required this.email,
     this.phone,
     this.photoUrl,
     required this.role,
     this.fcmToken,
+    required this.name,
+    required this.userType,
     required this.createdAt,
-    required this.walletBalance,
+    this.updatedAt,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String documentId) {
@@ -34,21 +34,26 @@ class UserModel {
     }
 
     return UserModel(
-      uid: documentId,
-      name: map['name'] ?? '',
+      id: id,
       email: map['email'] ?? '',
       phone: map['phone'],
       photoUrl: map['photoUrl'],
       role: map['role'] ?? 'renter',
       fcmToken: map['fcmToken'],
-      createdAt: parsedDate,
       walletBalance: (map['walletBalance'] ?? 0.0).toDouble(),
+      name: map['name'] ?? '',
+      userType: map['userType'] ?? 'driver',
+      createdAt: map['createdAt'] != null
+          ? DateTime.parse(map['createdAt'])
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.parse(map['updatedAt'])
+          : null,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'name': name,
       'email': email,
       'phone': phone,
       'photoUrl': photoUrl,
@@ -56,6 +61,10 @@ class UserModel {
       'fcmToken': fcmToken,
       'createdAt': Timestamp.fromDate(createdAt),
       'walletBalance': walletBalance,
+      'name': name,
+      'userType': userType,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
