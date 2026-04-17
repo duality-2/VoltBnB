@@ -107,8 +107,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (_nameController.text.isEmpty && userModel.name.isNotEmpty) {
             _nameController.text = userModel.name;
           }
-          if (_phoneController.text.isEmpty && userModel.phone != null) {
-            _phoneController.text = userModel.phone!;
+          if (_phoneController.text.isEmpty && userModel.phoneNumber != null) {
+            _phoneController.text = userModel.phoneNumber!;
           }
 
           return SingleChildScrollView(
@@ -121,10 +121,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: userModel.photoUrl != null
-                            ? NetworkImage(userModel.photoUrl!)
+                        backgroundImage: userModel.profileImageUrl != null
+                            ? NetworkImage(userModel.profileImageUrl!)
                             : null,
-                        child: userModel.photoUrl == null
+                        child: userModel.profileImageUrl == null
                             ? const Icon(Icons.person, size: 50)
                             : null,
                       ),
@@ -158,15 +158,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: userModel.role == 'host'
+                    color: userModel.userType == 'host'
                         ? Colors.blue.shade100
                         : Colors.green.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    userModel.role.toUpperCase(),
+                    userModel.userType.toUpperCase(),
                     style: TextStyle(
-                      color: userModel.role == 'host'
+                      color: userModel.userType == 'host'
                           ? Colors.blue.shade900
                           : Colors.green.shade900,
                       fontWeight: FontWeight.bold,

@@ -59,10 +59,11 @@ class MyChargersScreen extends ConsumerWidget {
                   trailing: Switch(
                     value: charger.isAvailable,
                     onChanged: (value) async {
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         await ref.read(chargerServiceProvider).updateCharger(charger.id, {'isAvailable': value});
                       } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update status')));
+                        messenger.showSnackBar(const SnackBar(content: Text('Failed to update status')));
                       }
                     },
                     activeThumbColor: const Color(0xFF1DB954),
