@@ -1,13 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/user_model.dart';
-import '../services/user_service.dart';
 import 'auth_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
-
-/// Provider for UserService
-final userServiceProvider = Provider<UserService>((ref) {
-  return UserService(ref.watch(firebaseFirestoreProvider));
-});
 
 /// Provider to fetch current user data from Firestore
 final currentUserDataProvider = FutureProvider<UserModel?>((ref) async {

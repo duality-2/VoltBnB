@@ -19,6 +19,7 @@ class AddChargerScreen extends ConsumerStatefulWidget {
 class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _priceController = TextEditingController();
   
@@ -29,6 +30,15 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
 
   final _availableAmenities = ['WiFi', 'Restroom', 'Cafe', 'Shopping'];
   final _connectorTypes = ['Type 1', 'Type 2', 'CCS1', 'CCS2', 'CHAdeMO', 'Tesla'];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _addressController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
@@ -53,8 +63,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
 
       // Upload photos
       for (var photo in _photos) {
-        final fileName = '\${const Uuid().v4()}.jpg';
-        final refPath = 'chargers/\$chargerId/\$fileName';
+        final refPath = 'chargers/$chargerId/${const Uuid().v4()}.jpg';
         final storageRef = FirebaseStorage.instance.ref().child(refPath);
         await storageRef.putFile(photo);
         final downloadUrl = await storageRef.getDownloadURL();
@@ -70,7 +79,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
         id: chargerId,
         hostUid: user.uid,
         title: _titleController.text.trim(),
-        description: '', // Optional field
+        description: _descriptionController.text.trim(),
         address: _addressController.text.trim(),
         lat: lat,
         lng: lng,
@@ -114,6 +123,13 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+                validator: (v) => v!.isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(labelText: 'Address'),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
@@ -123,11 +139,24 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                 controller: _priceController,
                 decoration: const InputDecoration(labelText: 'Price Per Hour'),
                 keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) {
+                    return 'Required';
+                  }
+
+                  final price = double.tryParse(v.trim());
+                  if (price == null) {
+                    return 'Enter a valid number';
+                  }
+                  if (price <= 0) {
+                    return 'Price must be greater than 0';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _connectorType,
+                initialValue: _connectorType,
                 decoration: const InputDecoration(labelText: 'Connector Type'),
                 items: _connectorTypes.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type));
@@ -145,8 +174,11 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
-                        if (selected) _amenities.add(amenity);
-                        else _amenities.remove(amenity);
+                        if (selected) {
+                          _amenities.add(amenity);
+                        } else {
+                          _amenities.remove(amenity);
+                        }
                       });
                     },
                   );

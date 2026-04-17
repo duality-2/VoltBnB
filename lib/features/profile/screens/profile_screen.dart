@@ -3,14 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/services/user_service.dart';
 import '../../auth/models/user_model.dart';
-
-final userServiceProvider = Provider(
-  (ref) => UserService(FirebaseFirestore.instance),
-);
+import '../../../core/providers/firebase_service_provider.dart';
 
 final currentUserModelProvider = FutureProvider<UserModel?>((ref) async {
   final user = ref.watch(userProvider);
@@ -50,7 +45,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() => _isUploading = true);
     try {
       final file = File(pickedFile.path);
-      final refPath = 'users/\${user.uid}/avatar.jpg';
+      final refPath = 'users/${user.uid}/avatar.jpg';
       final storageRef = FirebaseStorage.instance.ref().child(refPath);
 
       await storageRef.putFile(file);
@@ -105,8 +100,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Error: \$err')),
         data: (userModel) {
-          if (userModel == null)
+          if (userModel == null) {
             return const Center(child: Text('User not found.'));
+          }
 
           if (_nameController.text.isEmpty && userModel.name.isNotEmpty) {
             _nameController.text = userModel.name;

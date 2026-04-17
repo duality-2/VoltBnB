@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import '../models/charger_model.dart';
+import '../providers/charger_filter_provider.dart';
 
 class ChargerService {
   final FirebaseFirestore _firestore;
@@ -7,9 +10,10 @@ class ChargerService {
   ChargerService(this._firestore);
 
   /// Create a new charger
-  Future<String> createCharger(ChargerModel charger) async {
-    final docRef = await _firestore.collection('chargers').add(charger.toMap());
-    return docRef.id;
+  Future<String> addCharger(ChargerModel charger) async {
+    final docRef = _firestore.collection('chargers').doc(charger.id);
+    await docRef.set(charger.toMap());
+    return charger.id;
   }
 
   /// Get charger by ID
@@ -21,7 +25,7 @@ class ChargerService {
       }
       return null;
     } catch (e) {
-      print('Error fetching charger: $e');
+      debugPrint('Error fetching charger: $e');
       return null;
     }
   }
@@ -41,10 +45,10 @@ class ChargerService {
   }
 
   /// Get all chargers by host
-  Stream<List<ChargerModel>> getHostChargers(String hostId) {
+  Stream<List<ChargerModel>> getHostChargers(String hostUid) {
     return _firestore
         .collection('chargers')
-        .where('hostId', isEqualTo: hostId)
+        .where('hostUid', isEqualTo: hostUid)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -57,13 +61,46 @@ class ChargerService {
   Stream<List<ChargerModel>> getAvailableChargers() {
     return _firestore
         .collection('chargers')
-        .where('available', isEqualTo: true)
+        .where('isAvailable', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
               .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
               .toList();
         });
+  }
+
+  Stream<List<ChargerModel>> getAllChargers() {
+    return _firestore.collection('chargers').snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
+  }
+
+  /// Get chargers filtered on the server.
+  Stream<List<ChargerModel>> getFilteredChargers(ChargerFilter filter) {
+    Query<Map<String, dynamic>> query = _firestore.collection('chargers');
+
+    if (filter.availableOnly) {
+      query = query.where('isAvailable', isEqualTo: true);
+    }
+
+    if (filter.connectorType != null) {
+      query = query.where('connectorType', isEqualTo: filter.connectorType);
+    }
+
+    if (filter.maxPrice != null) {
+      query = query
+          .orderBy('pricePerHour')
+          .where('pricePerHour', isLessThanOrEqualTo: filter.maxPrice);
+    }
+
+    return query.snapshots().map((snapshot) {
+      return snapshot.docs
+          .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
+          .toList();
+    });
   }
 
   /// Get chargers by location (within radius)
@@ -75,23 +112,25 @@ class ChargerService {
     try {
       // Approximate conversion: 1 degree ≈ 111 km
       double latDelta = radiusInKm / 111.0;
-      double lonDelta = radiusInKm / (111.0 * DateTime.now().month.toDouble());
+      // Proper longitude calculation using cosine
+      final radians = latitude * (3.14159265 / 180.0);
+      double lonDelta = radiusInKm / (111.0 * cos(radians));
 
       final snapshot = await _firestore
           .collection('chargers')
-          .where('latitude', isGreaterThan: latitude - latDelta)
-          .where('latitude', isLessThan: latitude + latDelta)
+          .where('lat', isGreaterThan: latitude - latDelta)
+          .where('lat', isLessThan: latitude + latDelta)
           .get();
 
       return snapshot.docs
           .where((doc) {
             final charger = ChargerModel.fromMap(doc.data(), doc.id);
-            return (charger.longitude - longitude).abs() < lonDelta;
+            return (charger.lng - longitude).abs() < lonDelta;
           })
           .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error fetching chargers by location: $e');
+      debugPrint('Error fetching chargers by location: $e');
       return [];
     }
   }
@@ -101,15 +140,15 @@ class ChargerService {
     try {
       final snapshot = await _firestore
           .collection('chargers')
-          .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThan: query + 'z')
+          .where('title', isGreaterThanOrEqualTo: query)
+          .where('title', isLessThan: '${query}z')
           .get();
 
       return snapshot.docs
           .map((doc) => ChargerModel.fromMap(doc.data(), doc.id))
           .toList();
     } catch (e) {
-      print('Error searching chargers: $e');
+      debugPrint('Error searching chargers: $e');
       return [];
     }
   }

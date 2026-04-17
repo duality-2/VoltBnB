@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/providers/firebase_service_provider.dart';
-import '../services/auth_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
-import '../services/user_service.dart';
+import '../../../core/providers/firebase_service_provider.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
@@ -43,10 +43,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     });
 
     try {
-      final auth = ref.read(firebaseAuthProvider);
-      final authService = AuthService(auth);
-      final firestore = ref.read(firebaseFirestoreProvider);
-      final userService = UserService(firestore);
+      final authService = ref.watch(authServiceProvider);
+      final userService = ref.watch(userServiceProvider);
 
       // Create auth user
       final userCredential = await authService.signUpWithEmail(
@@ -56,14 +54,21 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
       // Create user profile in Firestore
       final userModel = UserModel(
-        id: userCredential.user!.uid,
+        uid: userCredential.user!.uid,
         email: _emailController.text.trim(),
         name: _nameController.text,
-        userType: _userType,
+        role: _userType == 'host' ? 'host' : 'renter',
         createdAt: DateTime.now(),
+        walletBalance: 0.0,
       );
 
       await userService.createUser(userModel);
+
+      // Save FCM token for push notifications
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await userService.saveFcmToken(userCredential.user!.uid, fcmToken);
+      }
 
       if (mounted) {
         context.go('/');

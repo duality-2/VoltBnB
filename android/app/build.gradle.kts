@@ -33,11 +33,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            // TODO: Set your actual signing key properties
+            // keytool -genkey -v -keystore release.keystore -alias voltbnb -keyalg RSA -keysize 2048 -validity 10000
+            storeFile = file("../release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "changeme"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "voltbnb"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "changeme"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use release signing config instead of debug
+            signingConfig = signingConfigs.getByName("release")
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 }
