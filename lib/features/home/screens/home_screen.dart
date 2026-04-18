@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -39,6 +41,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<LatLng> _shortestPathPoints = const [];
   ChargerModel? _routeTargetCharger;
   double? _routeDistanceMeters;
+  bool _isRoutingNearest = false;
+  bool _autoNearestRoutePending = false;
+  bool _autoNearestRouteDone = false;
   List<ChargerModel> _dummyChargers = const [];
   bool _isOffline = false;
 
@@ -77,6 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _initialCenter = nextCenter;
         _currentLocation = nextCenter;
         _dummyChargers = _generateDummyChargers(position);
+        _autoNearestRoutePending = true;
       });
       _mapController.move(nextCenter, 15.0);
     } catch (_) {}
@@ -431,7 +437,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showRouteToCharger(ChargerModel charger) {
+  Future<List<LatLng>?> _fetchRoadRoute(
+    LatLng source,
+    LatLng destination,
+  ) async {
+    final accessToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+    if (accessToken == null || accessToken.isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.parse(
+      'https://api.mapbox.com/directions/v5/mapbox/driving/'
+      '${source.longitude},${source.latitude};'
+      '${destination.longitude},${destination.latitude}'
+      '?alternatives=false&geometries=geojson&overview=full&steps=false'
+      '&access_token=$accessToken',
+    );
+
+    try {
+      final response = await http.get(uri);
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = payload['routes'] as List<dynamic>?;
+      if (routes == null || routes.isEmpty) {
+        return null;
+      }
+
+      final firstRoute = routes.first as Map<String, dynamic>;
+      final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'] as List<dynamic>?;
+      if (coordinates == null || coordinates.length < 2) {
+        return null;
+      }
+
+      final roadPath = coordinates
+          .map((point) => point as List<dynamic>)
+          .map((point) => LatLng((point[1] as num).toDouble(), (point[0] as num).toDouble()))
+          .toList();
+
+      final distanceMeters = (firstRoute['distance'] as num?)?.toDouble();
+      if (distanceMeters != null && mounted) {
+        setState(() => _routeDistanceMeters = distanceMeters);
+      }
+
+      return roadPath;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _showRouteToCharger(ChargerModel charger) async {
     final source = _currentLocation;
     if (source == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -442,11 +500,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
+    setState(() => _routeDistanceMeters = null);
+
     final destination = LatLng(charger.latitude, charger.longitude);
-    final path = AStarPathfinder.findShortestPath(
-      start: source,
-      goal: destination,
-    );
+    final roadPath = await _fetchRoadRoute(source, destination);
+    final path =
+        roadPath ??
+        AStarPathfinder.findShortestPath(start: source, goal: destination);
 
     const distance = Distance();
     double totalMeters = 0;
@@ -457,13 +517,64 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() {
       _routeTargetCharger = charger;
       _shortestPathPoints = path;
-      _routeDistanceMeters = totalMeters;
+      _routeDistanceMeters = _routeDistanceMeters ?? totalMeters;
     });
 
     _mapController.fitBounds(
       LatLngBounds.fromPoints(path),
       options: const FitBoundsOptions(padding: EdgeInsets.all(52)),
     );
+  }
+
+  ChargerModel? _nearestCharger(List<ChargerModel> chargers) {
+    final source = _currentLocation;
+    if (source == null || chargers.isEmpty) {
+      return null;
+    }
+
+    const distance = Distance();
+    ChargerModel? nearest;
+    var nearestMeters = double.infinity;
+
+    for (final charger in chargers) {
+      final meters = distance(source, LatLng(charger.latitude, charger.longitude));
+      if (meters < nearestMeters) {
+        nearestMeters = meters;
+        nearest = charger;
+      }
+    }
+
+    return nearest;
+  }
+
+  Future<void> _routeToNearestCharger(
+    List<ChargerModel> chargers, {
+    bool showFeedback = true,
+  }) async {
+    if (_isRoutingNearest) return;
+
+    final nearest = _nearestCharger(chargers);
+    if (nearest == null) {
+      if (showFeedback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No nearby pins found.')),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isRoutingNearest = true);
+    try {
+      await _showRouteToCharger(nearest);
+      if (!mounted) return;
+      if (showFeedback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Showing road route to nearest pin: ${nearest.name}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRoutingNearest = false);
+    }
   }
 
   void _clearRoute() {
@@ -668,6 +779,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ..._dummyChargers,
               ], _searchController.text);
 
+              if (_autoNearestRoutePending &&
+                  !_autoNearestRouteDone &&
+                  _currentLocation != null &&
+                  visibleChargers.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted || _autoNearestRouteDone || _isRoutingNearest) {
+                    return;
+                  }
+                  setState(() {
+                    _autoNearestRoutePending = false;
+                    _autoNearestRouteDone = true;
+                  });
+                  _routeToNearestCharger(visibleChargers, showFeedback: false);
+                });
+              }
+
               final markers = visibleChargers
                   .map(
                     (charger) => _buildChargerMarker(
@@ -712,6 +839,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             },
           ),
 
+          Positioned(
+            right: 16,
+            bottom: 220,
+            child: chargersAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (error, stackTrace) => const SizedBox.shrink(),
+              data: (chargers) {
+                final visibleChargers = _applySearch([
+                  ...chargers,
+                  ..._dummyChargers,
+                ], _searchController.text);
+
+                return FloatingActionButton.extended(
+                  heroTag: 'nearest_route_fab',
+                  onPressed: _isRoutingNearest
+                      ? null
+                      : () => _routeToNearestCharger(visibleChargers),
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: Colors.white,
+                  icon: _isRoutingNearest
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.near_me_rounded),
+                  label: Text(
+                    _isRoutingNearest ? 'Routing...' : 'Nearest Pin Route',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  ),
+                );
+              },
+            ),
+          ),
+
           if (_routeTargetCharger != null && _routeDistanceMeters != null)
             Positioned(
               left: 16,
@@ -739,7 +904,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'A* shortest path to ${_routeTargetCharger!.name}: ${_formatDistance(_routeDistanceMeters!)}',
+                        'Road route to ${_routeTargetCharger!.name}: ${_formatDistance(_routeDistanceMeters!)}',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
