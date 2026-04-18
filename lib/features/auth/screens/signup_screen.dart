@@ -58,6 +58,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         email: _emailController.text.trim(),
         name: _nameController.text.trim(),
         role: _userType,
+        authProvider: 'password',
+        passwordManagedByFirebase: true,
+        passwordUpdatedAt: DateTime.now(),
         createdAt: DateTime.now(),
       );
 
@@ -96,13 +99,17 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       }
 
       if (userCredential.user != null) {
-        final existingUser = await userService.getUser(userCredential.user!.uid);
+        final existingUser = await userService.getUser(
+          userCredential.user!.uid,
+        );
         if (existingUser == null) {
           final userModel = UserModel(
             uid: userCredential.user!.uid,
             email: userCredential.user!.email ?? '',
             name: userCredential.user!.displayName ?? 'New User',
             role: _userType,
+            authProvider: 'google.com',
+            passwordManagedByFirebase: true,
             createdAt: DateTime.now(),
           );
           await userService.createUser(userModel);
@@ -192,7 +199,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         value: type,
                         child: Text(
                           type == 'renter'
-                              ? 'I am a Renter (looking for chargers)'
+                              ? 'I am a Customer (looking for chargers)'
                               : 'I am a Host (renting chargers)',
                         ),
                       ),

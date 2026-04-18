@@ -4,8 +4,21 @@ import '../models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _firestore;
+  static const Set<String> _forbiddenCredentialFields = {
+    'password',
+    'passwordHash',
+    'passwordEncrypted',
+    'passwordSalt',
+    'passwordCiphertext',
+  };
 
   UserService(this._firestore);
+
+  Map<String, dynamic> _sanitizeCredentialFields(Map<String, dynamic> data) {
+    final sanitized = Map<String, dynamic>.from(data);
+    sanitized.removeWhere((key, _) => _forbiddenCredentialFields.contains(key));
+    return sanitized;
+  }
 
   /// Create a new user document in Firestore
   Future<void> createUser(UserModel user) async {
@@ -32,8 +45,9 @@ class UserService {
 
   /// Update user data
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {
-    data['updatedAt'] = DateTime.now().toIso8601String();
-    await _firestore.collection('users').doc(userId).update(data);
+    final sanitized = _sanitizeCredentialFields(data);
+    sanitized['updatedAt'] = DateTime.now().toIso8601String();
+    await _firestore.collection('users').doc(userId).update(sanitized);
   }
 
   /// Delete user
