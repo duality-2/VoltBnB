@@ -3,6 +3,9 @@ class UserModel {
   final String email;
   final String name;
   final String role; // 'host' or 'renter'
+  final String authProvider;
+  final bool passwordManagedByFirebase;
+  final DateTime? passwordUpdatedAt;
   final String? photoUrl;
   final String? phone;
   final String? address;
@@ -16,6 +19,9 @@ class UserModel {
     required this.email,
     required this.name,
     required this.role,
+    this.authProvider = 'password',
+    this.passwordManagedByFirebase = true,
+    this.passwordUpdatedAt,
     this.photoUrl,
     this.phone,
     this.address,
@@ -34,6 +40,13 @@ class UserModel {
       email: map['email'] ?? '',
       name: map['name'] ?? '',
       role: normalizedRole,
+      authProvider: map['authProvider']?.toString() ?? 'password',
+      passwordManagedByFirebase: map['passwordManagedByFirebase'] == null
+          ? true
+          : map['passwordManagedByFirebase'] == true,
+      passwordUpdatedAt: map['passwordUpdatedAt'] != null
+          ? DateTime.tryParse(map['passwordUpdatedAt'].toString())
+          : null,
       photoUrl: map['photoUrl'] ?? map['profileImageUrl'],
       phone: map['phone'] ?? map['phoneNumber'],
       address: map['address'],
@@ -55,6 +68,9 @@ class UserModel {
       'name': name,
       'role': role,
       'userType': role,
+      'authProvider': authProvider,
+      'passwordManagedByFirebase': passwordManagedByFirebase,
+      'passwordUpdatedAt': passwordUpdatedAt?.toIso8601String(),
       'photoUrl': photoUrl,
       'profileImageUrl': photoUrl,
       'phone': phone,
@@ -72,6 +88,9 @@ class UserModel {
     String? email,
     String? name,
     String? role,
+    String? authProvider,
+    bool? passwordManagedByFirebase,
+    DateTime? passwordUpdatedAt,
     String? photoUrl,
     String? phone,
     String? address,
@@ -85,6 +104,10 @@ class UserModel {
       email: email ?? this.email,
       name: name ?? this.name,
       role: role ?? this.role,
+      authProvider: authProvider ?? this.authProvider,
+      passwordManagedByFirebase:
+          passwordManagedByFirebase ?? this.passwordManagedByFirebase,
+      passwordUpdatedAt: passwordUpdatedAt ?? this.passwordUpdatedAt,
       photoUrl: photoUrl ?? this.photoUrl,
       phone: phone ?? this.phone,
       address: address ?? this.address,

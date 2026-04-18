@@ -18,9 +18,38 @@ service cloud.firestore {
       return request.auth.uid == uid;
     }
 
+    // Never allow password or password-hash style fields in Firestore.
+    // Passwords are securely managed by Firebase Authentication.
+    function hasNoCredentialFields(data) {
+      return !data.keys().hasAny([
+        'password',
+        'passwordHash',
+        'passwordEncrypted',
+        'passwordSalt',
+        'passwordCiphertext'
+      ]);
+    }
+
     match /users/{userId} {
-      // Users can only read and write their own profile
-      allow read, write: if isAuthenticated() && isOwner(userId);
+      // Users can only read their own profile.
+      allow read: if isAuthenticated() && isOwner(userId);
+
+      // Owner can create their own document, without credential fields.
+      allow create: if isAuthenticated() && isOwner(userId)
+        && request.resource.data.uid == userId
+        && hasNoCredentialFields(request.resource.data);
+
+      // Owner can update profile fields, but cannot mutate identity primitives
+      // or write credential fields.
+      allow update: if isAuthenticated() && isOwner(userId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt
+        && hasNoCredentialFields(request.resource.data);
+
+      // Owner can delete own profile document.
+      allow delete: if isAuthenticated() && isOwner(userId);
     }
 
     match /chargers/{chargerId} {

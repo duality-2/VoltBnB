@@ -75,7 +75,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final authService = ref.read(authServiceProvider);
       final userService = ref.read(userServiceProvider);
       final userCredential = await authService.signInWithGoogle();
-      
+
       if (userCredential == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
@@ -83,7 +83,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (userCredential.user != null) {
         // Ensure user document exists in Firestore
-        final existingUser = await userService.getUser(userCredential.user!.uid);
+        final existingUser = await userService.getUser(
+          userCredential.user!.uid,
+        );
         if (existingUser == null) {
           // Create new user defaulted to renter
           final userModel = UserModel(
@@ -91,6 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: userCredential.user!.email ?? '',
             name: userCredential.user!.displayName ?? 'Guest',
             role: 'renter',
+            authProvider: 'google.com',
+            passwordManagedByFirebase: true,
             createdAt: DateTime.now(),
           );
           await userService.createUser(userModel);
@@ -131,7 +135,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFF22C55E), width: 2),
       ),
-      hintStyle: GoogleFonts.inter(color: const Color(0xFF9CA3AF), fontSize: 15),
+      hintStyle: GoogleFonts.inter(
+        color: const Color(0xFF9CA3AF),
+        fontSize: 15,
+      ),
     );
 
     return Scaffold(
@@ -185,12 +192,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 16),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Color(0xFFEF4444),
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _error.toLowerCase().contains('popup_closed') 
-                            ? 'Google sign-in was cancelled.' 
+                        _error.toLowerCase().contains('popup_closed')
+                            ? 'Google sign-in was cancelled.'
                             : _error,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFEF4444),
@@ -221,7 +232,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : Text(
@@ -261,7 +274,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: OutlinedButton(
                   onPressed: _isLoading ? null : _googleLogin,
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+                    side: const BorderSide(
+                      color: Color(0xFFE5E7EB),
+                      width: 1.5,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),

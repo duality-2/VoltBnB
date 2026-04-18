@@ -154,11 +154,16 @@ The `GoRouter` automatically handles navigation based on authentication state:
   "name": "User Name",
   "phone": "+1234567890",
   "role": "renter|host",
+  "authProvider": "password|google.com",
+  "passwordManagedByFirebase": true,
+  "passwordUpdatedAt": "timestamp|null",
   "profileImage": "url",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
 ```
+
+Security note: user passwords are NOT stored in Firestore. Firebase Authentication stores them using strong salted hashing. Firestore only stores metadata (for example `passwordManagedByFirebase`) and explicitly rejects password/hash fields via rules.
 
 #### Chargers Collection
 

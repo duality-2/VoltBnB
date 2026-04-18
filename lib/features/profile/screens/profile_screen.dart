@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../booking/providers/booking_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
@@ -37,6 +38,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       'Dec',
     ];
     return '${createdAt.day} ${months[createdAt.month - 1]} ${createdAt.year}';
+  }
+
+  String _getCarbonBadge(double co2SavedKg) {
+    if (co2SavedKg >= 500) return 'Platinum';
+    if (co2SavedKg >= 250) return 'Gold';
+    if (co2SavedKg >= 100) return 'Silver';
+    if (co2SavedKg >= 25) return 'Bronze';
+    return 'Seed';
+  }
+
+  Color _getCarbonBadgeColor(String badge) {
+    switch (badge) {
+      case 'Platinum':
+        return const Color(0xFF475569);
+      case 'Gold':
+        return const Color(0xFFA16207);
+      case 'Silver':
+        return const Color(0xFF64748B);
+      case 'Bronze':
+        return const Color(0xFF9A3412);
+      default:
+        return const Color(0xFF166534);
+    }
   }
 
   @override
@@ -119,6 +143,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserModelProvider);
+    final renterBookingsAsync = ref.watch(renterBookingsProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -149,6 +174,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           if (userModel == null) {
             return const Center(child: Text('User not found.'));
           }
+
+          final renterBookings = renterBookingsAsync.asData?.value ?? const [];
+          final completedBookings = renterBookings
+              .where((booking) => booking.status == 'completed')
+              .toList();
+          final totalKwh = completedBookings.fold<double>(
+            0,
+            (sum, booking) => sum + booking.kWhConsumed,
+          );
+          final carbonSavedKg = totalKwh * 0.4;
+          final carbonRewardPoints = (carbonSavedKg * 10).round();
+          final carbonBadge = _getCarbonBadge(carbonSavedKg);
+          final carbonBadgeColor = _getCarbonBadgeColor(carbonBadge);
 
           if (_nameController.text.isEmpty && userModel.name.isNotEmpty) {
             _nameController.text = userModel.name;
@@ -270,6 +308,78 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Carbon Rewards',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF166534),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'CO2 Saved: ${carbonSavedKg.toStringAsFixed(2)} kg',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF14532D),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Reward Points: $carbonRewardPoints',
+                                textAlign: TextAlign.right,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF14532D),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(color: carbonBadgeColor),
+                          ),
+                          child: Text(
+                            'Badge: $carbonBadge',
+                            style: GoogleFonts.inter(
+                              color: carbonBadgeColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 24),
