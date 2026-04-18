@@ -21,6 +21,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isLoading = false;
   bool _isUploading = false;
 
+  String _formatMemberSince(DateTime createdAt) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${createdAt.day} ${months[createdAt.month - 1]} ${createdAt.year}';
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -232,6 +250,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                 ),
+                if (userModel.role != 'host') ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.calendar_month_rounded,
+                        size: 16,
+                        color: Color(0xFF6B7280),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Member Since ${_formatMemberSince(userModel.createdAt)}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF4B5563),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
                 TextField(
                   controller: _nameController,
