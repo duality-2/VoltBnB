@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
@@ -26,11 +27,15 @@ class AuthService {
 
   Future<UserCredential?> signInWithGoogle() async {
     const String webClientId = '734117694381-r3e944ha874k3dqjgoj7jehvb2j3pthl.apps.googleusercontent.com';
-    const bool isWeb = bool.hasEnvironment('dart.library.js_util');
-    
+
+    if (kIsWeb) {
+      final provider = GoogleAuthProvider();
+      provider.setCustomParameters({'prompt': 'select_account'});
+      return _firebaseAuth.signInWithPopup(provider);
+    }
+
     final GoogleSignIn googleSignIn = GoogleSignIn(
-      serverClientId: isWeb ? null : webClientId,
-      clientId: isWeb ? webClientId : null,
+      serverClientId: webClientId,
     );
     final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
     if (googleUser == null) {
@@ -43,7 +48,7 @@ class AuthService {
       idToken: googleAuth.idToken,
     );
 
-    return await _firebaseAuth.signInWithCredential(credential);
+    return _firebaseAuth.signInWithCredential(credential);
   }
 
   Future<void> signOut() async {
