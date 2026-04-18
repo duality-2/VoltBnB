@@ -22,13 +22,13 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
   final _addressController = TextEditingController();
   final _priceController = TextEditingController();
   
-  String _connectorType = 'Type 2';
+  String _connectorType = 'Type 2 - 16A';
   final List<String> _amenities = [];
   final List<File> _photos = [];
   bool _isLoading = false;
 
   final _availableAmenities = ['WiFi', 'Restroom', 'Cafe', 'Shopping'];
-  final _connectorTypes = ['Type 1', 'Type 2', 'CCS1', 'CCS2', 'CHAdeMO', 'Tesla'];
+  final _connectorTypes = ['Type 1 - 6A', 'Type 2 - 16A'];
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();

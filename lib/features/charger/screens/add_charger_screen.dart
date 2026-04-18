@@ -26,32 +26,40 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
 
-  String _connectorType = 'Type 2';
+  String _connectorType = 'Type 2 - 16A';
   final List<String> _amenities = [];
   final List<String> _availableSlots = [];
+  late final List<String> _allSlots;
   final List<XFile> _photos = [];
   bool _isLoading = false;
 
   final _availableAmenities = ['WiFi', 'Restroom', 'Cafe', 'Shopping'];
   final _connectorTypes = [
-    'Type 1',
-    'Type 2',
-    'CCS1',
-    'CCS2',
-    'CHAdeMO',
-    'Tesla',
+    'Type 1 - 6A',
+    'Type 2 - 16A',
   ];
   
-  final _allSlots = [
-    '09:00 AM - 10:00 AM',
-    '10:00 AM - 11:00 AM',
-    '11:00 AM - 12:00 PM',
-    '12:00 PM - 01:00 PM',
-    '01:00 PM - 02:00 PM',
-    '02:00 PM - 03:00 PM',
-    '03:00 PM - 04:00 PM',
-    '04:00 PM - 05:00 PM',
-  ];
+  String _formatHourLabel(int hour24) {
+    final normalizedHour = hour24 % 24;
+    final period = normalizedHour >= 12 ? 'PM' : 'AM';
+    final hour12 = normalizedHour % 12 == 0 ? 12 : normalizedHour % 12;
+    return '${hour12.toString().padLeft(2, '0')}:00 $period';
+  }
+
+  List<String> _build24HourSlots() {
+    return List<String>.generate(24, (index) {
+      final start = _formatHourLabel(index);
+      final end = _formatHourLabel(index + 1);
+      return '$start - $end';
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _allSlots = _build24HourSlots();
+    _availableSlots.addAll(_allSlots);
+  }
 
   @override
   void dispose() {
@@ -248,7 +256,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _connectorType,
+                initialValue: _connectorType,
                 style: GoogleFonts.inter(fontSize: 15, color: const Color(0xFF111827)),
                 decoration: const InputDecoration(
                   labelText: 'Connector Type',
@@ -298,7 +306,7 @@ class _AddChargerScreenState extends ConsumerState<AddChargerScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Available Slots',
+                'Available Slots (24 Hours)',
                 style: GoogleFonts.inter(
                   fontSize: 16, 
                   fontWeight: FontWeight.w700,

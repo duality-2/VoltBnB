@@ -12,6 +12,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/utils/astar_pathfinder.dart';
 import '../../charger/models/charger_model.dart';
 import '../../charger/providers/charger_filter_provider.dart';
 import '../../charger/providers/charger_provider.dart';
@@ -24,12 +25,20 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const List<String> _supportedConnectorTypes = [
+    'Type 1 - 6A',
+    'Type 2 - 16A',
+  ];
+
   final TextEditingController _searchController = TextEditingController();
   final MapController _mapController = MapController();
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   LatLng _initialCenter = LatLng(28.6139, 77.2090);
   LatLng? _currentLocation;
+  List<LatLng> _shortestPathPoints = const [];
+  ChargerModel? _routeTargetCharger;
+  double? _routeDistanceMeters;
   List<ChargerModel> _dummyChargers = const [];
   bool _isOffline = false;
 
@@ -121,7 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         address: 'Demo Zone ${index + 1}',
         latitude: latRadians * 180 / pi,
         longitude: lngRadians * 180 / pi,
-        chargerType: index.isEven ? 'CCS2' : 'Type 2',
+        chargerType: index.isEven ? 'Type 2 - 16A' : 'Type 1 - 6A',
         powerKw: 22 + (index * 7.5),
         pricePerHour: 20 + random.nextInt(40),
         available: isAvailable,
@@ -161,9 +170,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Marker(
       point: LatLng(charger.latitude, charger.longitude),
-      width: 50,
-      height: 50,
+      width: 56,
+      height: 56,
       builder: (context) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
@@ -181,7 +191,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
         ),
-      ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+      ),
     );
   }
 
@@ -248,22 +258,236 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onChargerTap(ChargerModel charger) {
-    if (charger.id.startsWith('dummy_charger_')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${charger.name} - ${charger.available ? 'Available' : 'Busy'}',
+    _showChargerQuickInfo(charger);
+  }
+
+  double? _distanceKmTo(ChargerModel charger) {
+    final source = _currentLocation;
+    if (source == null) return null;
+
+    const distance = Distance();
+    final meters = distance(source, LatLng(charger.latitude, charger.longitude));
+    return meters / 1000;
+  }
+
+  int? _estimatedDriveMinutes(ChargerModel charger) {
+    final km = _distanceKmTo(charger);
+    if (km == null) return null;
+
+    // Conservative city average speed.
+    const avgSpeedKmPerHour = 28.0;
+    final hours = km / avgSpeedKmPerHour;
+    return max(1, (hours * 60).round());
+  }
+
+  String _availabilityText(ChargerModel charger) {
+    final freeSlots = charger.totalSlots - charger.occupiedSlots;
+    if (charger.totalSlots <= 0) {
+      return charger.available ? 'Available now' : 'Busy now';
+    }
+    return '${freeSlots.clamp(0, charger.totalSlots)}/${charger.totalSlots} slots free';
+  }
+
+  void _showChargerQuickInfo(ChargerModel charger) {
+    final distanceKm = _distanceKmTo(charger);
+    final etaMinutes = _estimatedDriveMinutes(charger);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
           ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      charger.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF111827),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: charger.available
+                          ? const Color(0xFFF0FDF4)
+                          : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      charger.available ? 'AVAILABLE' : 'BUSY',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: charger.available
+                            ? const Color(0xFF166534)
+                            : const Color(0xFFB91C1C),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                charger.address,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _infoChip(Icons.currency_rupee_rounded, '₹${charger.pricePerHour}/hr'),
+                  _infoChip(Icons.power_rounded, charger.chargerType),
+                  _infoChip(Icons.bolt_rounded, '${(charger.powerKw ?? 0).toStringAsFixed(1)} kW'),
+                  _infoChip(Icons.ev_station_rounded, _availabilityText(charger)),
+                  if (distanceKm != null)
+                    _infoChip(Icons.place_outlined, '${distanceKm.toStringAsFixed(2)} km away'),
+                  if (etaMinutes != null)
+                    _infoChip(Icons.schedule_rounded, '~$etaMinutes min drive'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        _showRouteToCharger(charger);
+                      },
+                      icon: const Icon(Icons.alt_route_rounded),
+                      label: const Text('Find Route'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: charger.id.startsWith('dummy_charger_')
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              context.push('/charger/${charger.id}', extra: charger);
+                            },
+                      icon: const Icon(Icons.info_outline_rounded),
+                      label: const Text('View Details'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF374151)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF111827),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRouteToCharger(ChargerModel charger) {
+    final source = _currentLocation;
+    if (source == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enable location to find shortest path.'),
         ),
       );
       return;
     }
-    context.push('/charger/${charger.id}', extra: charger);
+
+    final destination = LatLng(charger.latitude, charger.longitude);
+    final path = AStarPathfinder.findShortestPath(
+      start: source,
+      goal: destination,
+    );
+
+    const distance = Distance();
+    double totalMeters = 0;
+    for (var i = 0; i < path.length - 1; i++) {
+      totalMeters += distance(path[i], path[i + 1]);
+    }
+
+    setState(() {
+      _routeTargetCharger = charger;
+      _shortestPathPoints = path;
+      _routeDistanceMeters = totalMeters;
+    });
+
+    _mapController.fitBounds(
+      LatLngBounds.fromPoints(path),
+      options: const FitBoundsOptions(padding: EdgeInsets.all(52)),
+    );
+  }
+
+  void _clearRoute() {
+    setState(() {
+      _routeTargetCharger = null;
+      _shortestPathPoints = const [];
+      _routeDistanceMeters = null;
+    });
+  }
+
+  String _formatDistance(double meters) {
+    if (meters < 1000) {
+      return '${meters.toStringAsFixed(0)} m';
+    }
+    return '${(meters / 1000).toStringAsFixed(2)} km';
   }
 
   void _openFilterSheet() {
     final currentFilter = ref.read(chargerFilterProvider);
     String? selectedConnector = currentFilter.connectorType;
+    if (selectedConnector != null &&
+        !_supportedConnectorTypes.contains(selectedConnector)) {
+      selectedConnector = null;
+    }
     double maxPrice = currentFilter.maxPrice ?? 200;
     bool availableOnly = currentFilter.availableOnly;
 
@@ -304,22 +528,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   DropdownButtonFormField<String>(
-                    value: selectedConnector,
+                    initialValue: selectedConnector,
                     decoration: const InputDecoration(
                       labelText: 'Connector Type',
                       prefixIcon: Icon(Icons.electrical_services_rounded),
                     ),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('All Types')),
-                      DropdownMenuItem(value: 'Type 1', child: Text('Type 1')),
-                      DropdownMenuItem(value: 'Type 2', child: Text('Type 2')),
-                      DropdownMenuItem(value: 'CCS1', child: Text('CCS1')),
-                      DropdownMenuItem(value: 'CCS2', child: Text('CCS2')),
                       DropdownMenuItem(
-                        value: 'CHAdeMO',
-                        child: Text('CHAdeMO'),
+                        value: 'Type - 6A',
+                        child: Text('Type - 6A'),
                       ),
-                      DropdownMenuItem(value: 'Tesla', child: Text('Tesla')),
+                      DropdownMenuItem(
+                        value: 'Type 2 - 16A',
+                        child: Text('Type 2 - 16A'),
+                      ),
                     ],
                     onChanged: (value) =>
                         setModalState(() => selectedConnector = value),
@@ -474,10 +697,66 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                   MarkerLayer(markers: markers),
+                  if (_shortestPathPoints.length >= 2)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _shortestPathPoints,
+                          strokeWidth: 5,
+                          color: const Color(0xFF2563EB),
+                        ),
+                      ],
+                    ),
                 ],
               );
             },
           ),
+
+          if (_routeTargetCharger != null && _routeDistanceMeters != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 220,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.alt_route_rounded,
+                      color: Color(0xFF2563EB),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'A* shortest path to ${_routeTargetCharger!.name}: ${_formatDistance(_routeDistanceMeters!)}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF111827),
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _clearRoute,
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           if (_isOffline)
             Positioned(

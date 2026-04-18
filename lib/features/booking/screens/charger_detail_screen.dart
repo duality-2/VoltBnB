@@ -36,6 +36,52 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
   // Fixed slot reservation fee
   final double slotFee = 30.0;
 
+  String _formatHourLabel(int hour24) {
+    final normalizedHour = hour24 % 24;
+    final period = normalizedHour >= 12 ? 'PM' : 'AM';
+    final hour12 = normalizedHour % 12 == 0 ? 12 : normalizedHour % 12;
+    return '${hour12.toString().padLeft(2, '0')}:00 $period';
+  }
+
+  List<String> _build24HourSlots() {
+    return List<String>.generate(24, (index) {
+      final start = _formatHourLabel(index);
+      final end = _formatHourLabel(index + 1);
+      return '$start - $end';
+    });
+  }
+
+  ({DateTime startTime, DateTime endTime}) _buildSlotDateTimes(
+    DateTime selectedDate,
+    String slot,
+  ) {
+    final timeParts = slot.split(' - ');
+    final startTimeOfDay = _parseTime(timeParts[0]);
+    final endTimeOfDay = _parseTime(timeParts[1]);
+
+    final startTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      startTimeOfDay.hour,
+      startTimeOfDay.minute,
+    );
+
+    var endTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      endTimeOfDay.hour,
+      endTimeOfDay.minute,
+    );
+
+    if (!endTime.isAfter(startTime)) {
+      endTime = endTime.add(const Duration(days: 1));
+    }
+
+    return (startTime: startTime, endTime: endTime);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,24 +108,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       if (!mounted) return;
 
       final user = ref.read(userProvider);
-      final timeParts = _selectedSlot!.split(' - ');
-      final startTimeOfDay = _parseTime(timeParts[0]);
-      final endTimeOfDay = _parseTime(timeParts[1]);
-
-      final startTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        startTimeOfDay.hour,
-        startTimeOfDay.minute,
-      );
-      final endTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        endTimeOfDay.hour,
-        endTimeOfDay.minute,
-      );
+      final slotWindow = _buildSlotDateTimes(_selectedDate!, _selectedSlot!);
 
       final booking = BookingModel(
         id: _pendingBookingId!,
@@ -94,8 +123,8 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
         status: 'confirmed',
         paymentId: response.paymentId ?? '',
         createdAt: DateTime.now(),
-        startTime: startTime,
-        endTime: endTime,
+        startTime: slotWindow.startTime,
+        endTime: slotWindow.endTime,
       );
 
       context.pushReplacement(
@@ -158,24 +187,9 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
       return;
     }
 
-    final timeParts = _selectedSlot!.split(' - ');
-    final startTimeOfDay = _parseTime(timeParts[0]);
-    final endTimeOfDay = _parseTime(timeParts[1]);
-
-    final startTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      startTimeOfDay.hour,
-      startTimeOfDay.minute,
-    );
-    final endTime = DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
-      endTimeOfDay.hour,
-      endTimeOfDay.minute,
-    );
+    final slotWindow = _buildSlotDateTimes(_selectedDate!, _selectedSlot!);
+    final startTime = slotWindow.startTime;
+    final endTime = slotWindow.endTime;
 
     if (startTime.isBefore(DateTime.now())) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -345,12 +359,7 @@ class _ChargerDetailScreenState extends ConsumerState<ChargerDetailScreen> {
     // Simulated available slots if host did not set any
     final dynamicSlots = widget.charger.availableSlots.isNotEmpty
         ? widget.charger.availableSlots
-        : [
-            '09:00 AM - 10:00 AM',
-            '10:00 AM - 11:00 AM',
-            '11:00 AM - 12:00 PM',
-            '01:00 PM - 02:00 PM',
-          ];
+      : _build24HourSlots();
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.charger.name)),
