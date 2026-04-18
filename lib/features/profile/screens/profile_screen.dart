@@ -282,6 +282,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                TextFormField(
+                  initialValue: userModel.email,
+                  readOnly: true,
+                  style: GoogleFonts.inter(fontSize: 15),
+                  decoration: const InputDecoration(
+                    labelText: 'Email Address',
+                    prefixIcon: Icon(Icons.email_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _phoneController,
                   style: GoogleFonts.inter(fontSize: 15),
