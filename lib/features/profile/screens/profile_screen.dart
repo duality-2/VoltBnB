@@ -8,7 +8,6 @@ import '../../auth/providers/user_provider.dart';
 import '../../../core/providers/firebase_service_provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -158,7 +157,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
-                            )
+                            ),
                           ],
                         ),
                         child: CircleAvatar(
@@ -168,13 +167,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ? NetworkImage(userModel.profileImageUrl!)
                               : null,
                           child: userModel.profileImageUrl == null
-                              ? const Icon(Icons.person_rounded, size: 54, color: Color(0xFF9CA3AF))
+                              ? const Icon(
+                                  Icons.person_rounded,
+                                  size: 54,
+                                  color: Color(0xFF9CA3AF),
+                                )
                               : null,
                         ),
                       ),
                       if (_isUploading)
                         const Positioned.fill(
-                          child: CircularProgressIndicator(color: Color(0xFF22C55E)),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF22C55E),
+                          ),
                         ),
                       Positioned(
                         bottom: 0,
@@ -214,7 +219,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                   child: Text(
-                    userModel.role.toUpperCase(),
+                    userModel.role == 'renter'
+                        ? 'CUSTOMER'
+                        : userModel.role.toUpperCase(),
                     style: GoogleFonts.inter(
                       color: userModel.role == 'host'
                           ? const Color(0xFF1E40AF)
@@ -264,7 +271,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : Text(

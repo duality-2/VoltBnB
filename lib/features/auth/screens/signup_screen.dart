@@ -192,7 +192,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                         value: type,
                         child: Text(
                           type == 'renter'
-                              ? 'I am a Renter (looking for chargers)'
+                              ? 'I am a Customer (looking for chargers)'
                               : 'I am a Host (renting chargers)',
                         ),
                       ),
