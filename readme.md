@@ -11,7 +11,7 @@ VoltBnB addresses the "range anxiety" of EV drivers by unlocking thousands of pr
 
 ### 🚗 For Drivers (Renters)
 - **Map-Based Discovery**: Interactive Mapbox integration to find nearby chargers with real-time availability.
-- **Smart Filtering**: Filter by connector type (Type 2, CCS2, etc.), price range, and host amenities.
+- **Smart Filtering**: Filter by connector type (Type 2 - 6A, Type 2 - 16A), price range, and host amenities.
 - **Dynamic Pricing**: Automatic adjustment for "Happy Hours" or peak demand surges.
 - **Secure Payments**: Integrated Razorpay checkout for slot reservation fees.
 - **Live Charging Sessions**: High-tech dashboard to monitor energy delivery (kWh) and elapsed time in real-time.
